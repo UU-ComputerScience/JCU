@@ -3,9 +3,17 @@ COMPILER = ${UHC} --import-path=${UHC_JSCRIPT} --import-path=${UHC_NANOPROLOG} -
 
 all: build
 
-build:
+build: webworker
 	${COMPILER} jcu.hs
+
+webworker: 
+	${COMPILER} Worker.hs
+	rm Worker.html
+
 	
+infinite: 
+	${COMPILER} infinite.hs
+
 testcase: testcases/*.hs
 	cd testcases && ${COMPILER} alert.hs
 	
