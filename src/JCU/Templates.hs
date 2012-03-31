@@ -40,8 +40,9 @@ doc c = do
             H.img ! A.src jcuLogo64 ! A.alt "JCU logo"
             H.toHtml ("Module Functioneel en Logisch Programmeren" :: Text)
           if loggedIn
-            then  H.span ! A.id "logout" $ H.a ! A.href "/logout" $
-                   H.toHtml ("Logout" :: Text)
+            then  do H.span $ H.a ! A.href "/interpreter" $ H.toHtml ("Interpreter" :: Text)
+                     H.span ! A.id "logout" $ H.a ! A.href "/logout" $
+                       H.toHtml ("Logout" :: Text)
             else  H.span ! A.id "logout" $ H.a ! A.href "/signup" $
                    H.toHtml ("Create an account" :: Text)
         H.div ! A.id "bd" $ content
@@ -90,6 +91,12 @@ loginHTML loginFailed frm = return $
     H.h1 $ H.toHtml ("Please log in" :: Text)
     when loginFailed $ H.h2 "Incorrect login credentials"
     showForm "/login" frm
+
+interpreterHTML :: Reader AuthState Html
+interpreterHTML = return $ do
+  H.input ! A.type_ "text" ! A.id "query"
+  H.input ! A.type_ "button" ! A.id "submitquery"
+  H.div (H.toHtml ("Please enter a query" :: Text)) ! A.id "output"
 
 showForm :: AttributeValue -> FormHtml (HtmlM a) -> Html
 showForm act frm =

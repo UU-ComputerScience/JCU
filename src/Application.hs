@@ -72,6 +72,8 @@ jcu = makeSnaplet "jcu" "Prolog proof tree practice application" Nothing $ do
              ,  ("/login",   loginH)
              ,  ("/logout",  logoutH)
              ,  ("/signup",  signupH)
+             ,  ("/interpreter",  method GET interpreterH)
+             ,  ("/interpreter/:query",  method GET runInterpreterH)
              ,  ("/rules/stored",  method GET   readStoredRulesH)
              ,  ("/rules/stored",  method POST  addStoredRuleH)
              ,  ("/rules/stored/:id",  method DELETE  deleteStoredRuleH)
@@ -168,6 +170,24 @@ logoutH = do
   with authLens logout
   redirect "/"
 
+interpreterH :: AppHandler ()
+interpreterH = restrict forbiddenH $ blaze interpreterHTML
+
+runInterpreterH :: AppHandler ()
+runInterpreterH = restrict forbiddenH $ do
+  qry <- getParam "query"
+  case qry of
+    Nothing  -> writeBS "Failed to produce a solution"
+    Just q'  -> do  let (goal, errs) = startParse pTerm (BS.unpack q')
+                    if null errs
+                      then do -- TODO rules
+                        rs <- getStoredRules =<< getUserId
+                        let rules = [r |(DBRule _ _ r) <- rs]
+                        let result = solve rules emptyEnv [("0", goal)]
+                            shpref env (prefix, pr) = prefix ++ " " ++ show (subst env pr)
+                        writeBS . BS.pack $ show $ concat [concatMap (show . shpref env) (reverse proof) ++ "\nsubstitution: " ++ show env | (proof, env) <- enumerateDepthFirst [] result]
+                      else writeBS . BS.pack $ "There has been an error" -- show $ concat errs
+
 readStoredRulesH :: AppHandler ()
 readStoredRulesH = restrict forbiddenH $ do
   rules <- getStoredRules =<< getUserId
@@ -194,7 +214,7 @@ addStoredRuleH = restrict forbiddenH $ do
       case insRes of
         (Just newID) -> do modifyResponse $ setContentType "application/json"
                            writeLBS $ encode (AddRes newID)
-        Nothing      -> error500H undefined
+        Nothing      -> error500H "Failed to add rule"
 
 
 loadExampleH :: AppHandler ()
