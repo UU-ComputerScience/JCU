@@ -31,7 +31,7 @@ import Language.Prolog.NanoProlog.ParserUUTC
 
 import Language.UHC.JScript.JQuery.Deferred 
 
-import Language.UHC.JScript.WebWorker 
+{-import Language.UHC.JScript.WebWorker -}
 
 ----
 --  App
@@ -88,28 +88,40 @@ readStore sel = fmap read (jQuery storeDoCheckId >>= valString)
 --   Application
 ----
 main :: IO ()
-main = do init <- wrapIO initialize
-          onDocumentReady init
-          
+main = do
+  path <- pathName
+  init <- wrapIO $ if "interpreter" `isInfixOf` path
+                     then  initInterpreter
+                     else  initProofTree
+  onDocumentReady init
+
+initInterpreter :: IO ()
+initInterpreter = do
+  obj <- mkAnonObj
+  ajaxQ GET ("/interpreter/" ++ encodeURIComponent "TODO") obj showInterpRes noop
+  return () -- TODO: Implement
 
 
-initialize :: IO ()
-initialize = do -- Rendering
-                bd <- jQuery "#bd"
-                setHTML bd Templates.home
-                wrapInner bd "<div id=\"home-view\"/>"
-                -- Proof tree
-                addRuleTree
-                -- Rules list
-                obj <- mkAnonObj
-                ajaxQ GET "/rules/stored" obj addRules noop
-                
-                registerEvents [("#btnCheck"  , Click    , toggleClue emptyProof)
-                               ,("#btnAddRule", Click    , addRuleEvent)
-                               ,("#btnReset"  , Click    , resetTree)
-                               ,("#txtAddRule", KeyPress , noevent)
-                               ,("#txtAddRule", Blur     , checkTermSyntax)
-                               ]
+showInterpRes :: AjaxCallback JSString
+showInterpRes res str obj = return () -- TODO
+
+initProofTree :: IO ()
+initProofTree = do -- Rendering
+  bd <- jQuery "#bd"
+  setHTML bd Templates.home
+  wrapInner bd "<div id=\"home-view\"/>"
+  -- Proof tree
+  addRuleTree
+  -- Rules list
+  obj <- mkAnonObj
+  ajaxQ GET "/rules/stored" obj addRules noop
+
+  registerEvents [("#btnCheck"  , Click    , toggleClue emptyProof)
+                 ,("#btnAddRule", Click    , addRuleEvent)
+                 ,("#btnReset"  , Click    , resetTree)
+                 ,("#txtAddRule", KeyPress , noevent)
+                 ,("#txtAddRule", Blur     , checkTermSyntax)
+                 ]
   where noevent :: EventHandler
         noevent x = return False
         checkTermSyntax _ = do inp   <- jQuery "#txtAddRule"
