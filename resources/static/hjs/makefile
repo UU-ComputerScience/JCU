@@ -1,15 +1,14 @@
 # COMPILER = ${UHC} --import-path=${UHC_JSCRIPT} --import-path=${UHC_NANOPROLOG} --import-path=${UHC_UU_TC} -tjs --no-recomp --no-hi-check -O,2 # --dump-core-stages=1
 COMPILER = ${UHC} --import-path=${UHC_JSCRIPT} --import-path=${UHC_NANOPROLOG} --import-path=${UHC_UU_TC} -tjs -O,2 # --no-recomp --no-hi-check --dump-core-stages=1
 
-all: build
+all: jcu.js
 
-build: webworker
+jcu.js:
 	${COMPILER} jcu.hs
 
 webworker: 
 	${COMPILER} Worker.hs
 	rm Worker.html
-
 	
 infinite: 
 	${COMPILER} infinite.hs
@@ -20,6 +19,7 @@ testcase: testcases/*.hs
 test:
 	echo $(GHC_OPTS)
 
-.PHONY clean-core:
-	rm `find . -d -name "*.core*"`
-	rm `find ${LANGUAGE_DIR} -d -name "*.core*"`
+clean:
+	find . -iname "*.mjs" -o -iname "*.core*" -o -iname "*.hi" | xargs rm
+
+.PHONY: clean
