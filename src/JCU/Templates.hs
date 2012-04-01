@@ -95,17 +95,26 @@ loginHTML loginFailed frm = return $
     when loginFailed $ H.h2 "Incorrect login credentials"
     showForm "/login" frm
 
-interpreterHTML :: Reader AuthState Html
-interpreterHTML = return $ do
+mainHTML :: Html -> Reader AuthState Html
+mainHTML left = return $ do
   H.div ! A.id "home-view" $
     H.div ! A.class_ "yui3-g" $ do
-      H.div ! A.class_ "yui3-u-1-2" $ do
-        H.input ! A.type_ "text" ! A.id "query"
-        H.input ! A.type_ "button" ! A.id "submitquery" ! A.value "Submit Query"
-        H.div ! A.id "output" $
-          H.toHtml ("Please enter a query" :: Text)
-      H.div ! A.class_ "yui3-u-1-2" $
-        H.toHtml ("Have the rule list here" :: Text)
+      H.div ! A.class_ "yui3-u-1-2" ! A.id "mainLeft" $ left
+      H.div ! A.class_ "yui3-u-1-2" ! A.id "mainRight" $ do
+        H.div ! A.class_ "content" $ do
+          H.h2 (H.toHtml ("Stored Rules" :: Text))
+          H.p (H.toHtml ("Drag a rule form the list below to a field containing a term in the tree on the left." :: Text))
+          H.div ! A.id "rules-list-div" $ H.toHtml ("" :: Text)
+          H.div ! A.id "divListAdd" $ do
+            H.input ! A.type_ "text" ! A.id "txtAddRule"
+            H.input ! A.type_ "button" ! A.id "btnAddRule" ! A.value "Add"
+
+interpreterHTML :: Reader AuthState Html
+interpreterHTML = mainHTML $ do
+  H.input ! A.type_ "text" ! A.id "query"
+  H.input ! A.type_ "button" ! A.id "submitquery" ! A.value "Submit Query"
+  H.div ! A.id "output" $
+    H.toHtml ("Please enter a query" :: Text)
 
 showForm :: AttributeValue -> FormHtml (HtmlM a) -> Html
 showForm act frm =
@@ -116,6 +125,6 @@ showForm act frm =
          return ()
 
 index :: Reader AuthState Html
-index = return $
-  H.div $ H.toHtml ("JCU: Wiskunde D. The application is either loading, or something went wrong." :: Text)
+index = mainHTML
+  (H.div $ H.toHtml ("JCU: Wiskunde D. The application is either loading, or something went wrong." :: Text))
 

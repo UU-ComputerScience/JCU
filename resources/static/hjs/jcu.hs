@@ -96,12 +96,28 @@ main = do
   onDocumentReady init
 
 initInterpreter :: IO ()
-initInterpreter = registerEvents [("#submitquery", Click, submitQuery)]
+initInterpreter = do
+  obj <- mkAnonObj
+  ajaxQ GET "/rules/stored" obj addRules noop
+  registerEvents [ ("#submitquery", Click   , submitQuery)
+                 , ("#txtAddRule" , KeyPress, noevent)
+                 , ("#txtAddRule" , Blur    , checkTermSyntax)
+                 ]
   where submitQuery _ = do  obj <- mkAnonObj
                             qryFld <- jQuery "#query"
                             qry <- valJSString qryFld
                             ajaxQ GET ("/interpreter/" ++ fromJS (_encodeURIComponent qry)) obj showInterpRes noop
                             return True
+
+checkTermSyntax _ = do inp   <- jQuery "#txtAddRule"
+                       input <- valString inp
+                       case tryParseRule input of
+                         Nothing -> markInvalidTerm inp
+                         _       -> return ()
+                       return True
+
+noevent :: EventHandler
+noevent _ = return False
 
 showInterpRes :: AjaxCallback JSString
 showInterpRes res str obj = do
@@ -111,9 +127,12 @@ showInterpRes res str obj = do
 
 initProofTree :: IO ()
 initProofTree = do -- Rendering
-  bd <- jQuery "#bd"
-  setHTML bd Templates.home
-  wrapInner bd "<div id=\"home-view\"/>"
+  {-bd <- jQuery "#bd"-}
+  {-setHTML bd Templates.home-}
+  {-wrapInner bd "<div id=\"home-view\"/>"-}
+  l <- jQuery "#mainLeft"
+  r <- jQuery "#mainRight"
+  setHTML l homeLeft
   -- Proof tree
   addRuleTree
   -- Rules list
@@ -126,15 +145,7 @@ initProofTree = do -- Rendering
                  ,("#txtAddRule", KeyPress , noevent)
                  ,("#txtAddRule", Blur     , checkTermSyntax)
                  ]
-  where noevent :: EventHandler
-        noevent x = return False
-        checkTermSyntax _ = do inp   <- jQuery "#txtAddRule"
-                               input <- valString inp
-                               case tryParseRule input of
-                                 Nothing -> markInvalidTerm inp
-                                 _       -> return ()
-                               return True
-        resetTree _ = do -- Do not forget to add the class that hides the colours
+  where resetTree _ = do -- Do not forget to add the class that hides the colours
                          jQuery "#proof-tree-div" >>= flip addClass "noClue"
                          -- Always store False in the store.
                          updateStore storeDoCheckId (const False)
