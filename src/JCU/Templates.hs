@@ -99,7 +99,8 @@ mainHTML :: Html -> Reader AuthState Html
 mainHTML left = return $ do
   H.div ! A.id "home-view" $
     H.div ! A.class_ "yui3-g" $ do
-      H.div ! A.class_ "yui3-u-1-2" ! A.id "mainLeft" $ left
+      H.div ! A.class_ "yui3-u-1-2" ! A.id "mainLeft" $
+        H.div ! A.class_ "content" $ left
       H.div ! A.class_ "yui3-u-1-2" ! A.id "mainRight" $ do
         H.div ! A.class_ "content" $ do
           H.h2 (H.toHtml ("Stored Rules" :: Text))
@@ -125,6 +126,28 @@ showForm act frm =
          return ()
 
 index :: Reader AuthState Html
-index = mainHTML
-  (H.div $ H.toHtml ("JCU: Wiskunde D. The application is either loading, or something went wrong." :: Text))
-
+index = mainHTML $ do
+  H.h2 "Proof Tree"
+  H.div ! A.id "proof-tree-div" ! A.class_ "noClue" $
+    H.div $ H.toHtml ("JCU: Wiskunde D. The application is either loading, or something went wrong." :: Text)
+  H.div ! A.id "subst" $ do
+    H.toHtml ("Substitute " :: Text)
+    H.input ! A.type_ "text" ! A.id "txtSubstSub" ! A.style "width: 50px"
+    H.toHtml (" for " :: Text)
+    H.input ! A.type_ "text" ! A.id "txtSubstFor" ! A.style "width: 50px"
+    H.input ! A.type_ "button" ! A.id "btnSubst" ! A.value "Substitute"
+    H.toHtml (" (e.g. substitute bea for X0)" :: Text)
+  H.input ! A.type_ "hidden" ! A.id "storeDoChecking" ! A.value "False"
+  H.input ! A.type_ "button" ! A.id "btnCheck" ! A.value "Check Proof"
+  H.input ! A.type_ "button" ! A.id "btnReset" ! A.value "Reset Tree"
+  H.h3 $ H.toHtml ("Color coding help" :: Text)
+  H.ul ! A.id "color-coding-list" $ do
+    H.li $ H.div ! A.class_ "box redField" $ H.toHtml ("Incorrect rule application" :: Text)
+    H.li $ H.div ! A.class_ "box yellowField" $ H.toHtml ("Incomplete proof" :: Text)
+    H.li $ H.div ! A.class_ "box greenField" $ H.toHtml ("Correct rule" :: Text)
+    H.li $ H.div ! A.class_ "box blueField" $ H.toHtml ("Syntax error" :: Text)
+  H.h3 $ H.toHtml ("Example data" :: Text)
+  H.p ! A.class_ "lhsText" $ do
+    H.toHtml ("Example data containing the Dutch royal family, the list structure and lookup, and the natural numbers (as discussed in the JCU lecture notes) can be loaded by " :: Text)
+    H.a ! A.href "/load-example" $ H.toHtml ("clicking this link" :: Text)
+    H.toHtml (". Beware that this will replace all your existing rules!" :: Text)

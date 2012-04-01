@@ -128,7 +128,6 @@ showInterpRes res str obj = do
 initProofTree :: IO ()
 initProofTree = do -- Rendering
   l <- jQuery "#mainLeft"
-  setHTML l homeLeft
   -- Proof tree
   addRuleTree
   -- Rules list
