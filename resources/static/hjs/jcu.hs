@@ -96,14 +96,18 @@ main = do
   onDocumentReady init
 
 initInterpreter :: IO ()
-initInterpreter = do
-  obj <- mkAnonObj
-  ajaxQ GET ("/interpreter/" ++ encodeURIComponent "TODO") obj showInterpRes noop
-  return () -- TODO: Implement
-
+initInterpreter = registerEvents [("#submitquery", Click, submitQuery)]
+  where submitQuery _ = do  obj <- mkAnonObj
+                            qryFld <- jQuery "#query"
+                            qry <- valJSString qryFld
+                            ajaxQ GET ("/interpreter/" ++ fromJS (_encodeURIComponent qry)) obj showInterpRes noop
+                            return True
 
 showInterpRes :: AjaxCallback JSString
-showInterpRes res str obj = return () -- TODO
+showInterpRes res str obj = do
+  op <- jQuery "#output"
+  _setHTML op res
+  return ()
 
 initProofTree :: IO ()
 initProofTree = do -- Rendering

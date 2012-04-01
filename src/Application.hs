@@ -185,7 +185,7 @@ runInterpreterH = restrict forbiddenH $ do
                         let rules = [r |(DBRule _ _ r) <- rs]
                         let result = solve rules emptyEnv [("0", goal)]
                             shpref env (prefix, pr) = prefix ++ " " ++ show (subst env pr)
-                        writeBS . BS.pack $ show $ concat [concatMap (show . shpref env) (reverse proof) ++ "\nsubstitution: " ++ show env | (proof, env) <- enumerateDepthFirst [] result]
+                        writeBS . BS.pack $ show $ concat [concatMap (shpref env) (reverse proof) ++ "<br/>\nsubstitution: " ++ show env | (proof, env) <- enumerateDepthFirst [] result]
                       else writeBS . BS.pack $ "There has been an error" -- show $ concat errs
 
 readStoredRulesH :: AppHandler ()

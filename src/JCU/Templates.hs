@@ -95,7 +95,7 @@ loginHTML loginFailed frm = return $
 interpreterHTML :: Reader AuthState Html
 interpreterHTML = return $ do
   H.input ! A.type_ "text" ! A.id "query"
-  H.input ! A.type_ "button" ! A.id "submitquery"
+  H.input ! A.type_ "button" ! A.id "submitquery" ! A.value "Submit Query"
   H.div (H.toHtml ("Please enter a query" :: Text)) ! A.id "output"
 
 showForm :: AttributeValue -> FormHtml (HtmlM a) -> Html
