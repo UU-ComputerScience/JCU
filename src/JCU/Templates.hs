@@ -38,11 +38,14 @@ doc c = do
         H.div ! A.id "hd" $ do
           H.span ! A.id "header" $ do
             H.img ! A.src jcuLogo64 ! A.alt "JCU logo"
-            H.toHtml ("Module Functioneel en Logisch Programmeren" :: Text)
+            H.toHtml ("Module Functional and Logical Programming" :: Text)
           if loggedIn
-            then  do H.span $ H.a ! A.href "/interpreter" $ H.toHtml ("Interpreter" :: Text)
-                     H.span ! A.id "logout" $ H.a ! A.href "/logout" $
-                       H.toHtml ("Logout" :: Text)
+            then  H.span ! A.id "logout" $ do
+                    H.a ! A.href "/" $ H.toHtml ("Proof tree" :: Text)
+                    H.toHtml (" | " :: Text)
+                    H.a ! A.href "/interpreter" $ H.toHtml ("Interpreter" :: Text)
+                    H.toHtml (" | " :: Text)
+                    H.a ! A.href "/logout" $ H.toHtml ("Logout" :: Text)
             else  H.span ! A.id "logout" $ H.a ! A.href "/signup" $
                    H.toHtml ("Create an account" :: Text)
         H.div ! A.id "bd" $ content
@@ -94,9 +97,15 @@ loginHTML loginFailed frm = return $
 
 interpreterHTML :: Reader AuthState Html
 interpreterHTML = return $ do
-  H.input ! A.type_ "text" ! A.id "query"
-  H.input ! A.type_ "button" ! A.id "submitquery" ! A.value "Submit Query"
-  H.div (H.toHtml ("Please enter a query" :: Text)) ! A.id "output"
+  H.div ! A.id "home-view" $
+    H.div ! A.class_ "yui3-g" $ do
+      H.div ! A.class_ "yui3-u-1-2" $ do
+        H.input ! A.type_ "text" ! A.id "query"
+        H.input ! A.type_ "button" ! A.id "submitquery" ! A.value "Submit Query"
+        H.div ! A.id "output" $
+          H.toHtml ("Please enter a query" :: Text)
+      H.div ! A.class_ "yui3-u-1-2" $
+        H.toHtml ("Have the rule list here" :: Text)
 
 showForm :: AttributeValue -> FormHtml (HtmlM a) -> Html
 showForm act frm =
