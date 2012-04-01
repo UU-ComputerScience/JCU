@@ -65,11 +65,11 @@ header = do
     H.link ! A.rel "stylesheet" ! A.type_ "text/css" ! A.media "screen" ! A.href mainCss
     H.link ! A.rel "icon" ! A.type_ "image/png" ! A.href jcuLogo16
     when loggedIn $ do
-      -- H.script ! A.src "brunch/build/web/js/app.js" $ H.toHtml ("" :: Text)
-      H.script ! A.src "brunch/src/vendor/jquery-1.6.2.js" $ H.toHtml ("" :: Text)
-      H.script ! A.src "brunch/src/vendor/jquery-ui-1.8.16.custom.min.js" $ H.toHtml ("" :: Text)      
-      H.script ! A.src "hjs/ajaxq.js" $ H.toHtml ("" :: Text)
-      H.script ! A.src "hjs/jcu.js" $ H.toHtml ("" :: Text)
+      -- H.script ! A.src "brunch/build/web/js/app.js" $ return ()
+      H.script ! A.src "brunch/src/vendor/jquery-1.6.2.js" $ return ()
+      H.script ! A.src "brunch/src/vendor/jquery-ui-1.8.16.custom.min.js" $ return ()
+      H.script ! A.src "hjs/ajaxq.js" $ return ()
+      H.script ! A.src "hjs/jcu.js" $ return ()
       -- H.script $ H.toHtml ("require('main');" :: Text)
   where
     cssBase    = "http://yui.yahooapis.com/3.3.0/build/cssbase/base-min.css"
@@ -104,7 +104,7 @@ mainHTML left = return $ do
         H.div ! A.class_ "content" $ do
           H.h2 (H.toHtml ("Stored Rules" :: Text))
           H.p (H.toHtml ("Drag a rule form the list below to a field containing a term in the tree on the left." :: Text))
-          H.div ! A.id "rules-list-div" $ H.toHtml ("" :: Text)
+          H.div ! A.id "rules-list-div" $ return ()
           H.div ! A.id "divListAdd" $ do
             H.input ! A.type_ "text" ! A.id "txtAddRule"
             H.input ! A.type_ "button" ! A.id "btnAddRule" ! A.value "Add"

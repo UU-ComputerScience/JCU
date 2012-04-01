@@ -127,11 +127,7 @@ showInterpRes res str obj = do
 
 initProofTree :: IO ()
 initProofTree = do -- Rendering
-  {-bd <- jQuery "#bd"-}
-  {-setHTML bd Templates.home-}
-  {-wrapInner bd "<div id=\"home-view\"/>"-}
   l <- jQuery "#mainLeft"
-  r <- jQuery "#mainRight"
   setHTML l homeLeft
   -- Proof tree
   addRuleTree
