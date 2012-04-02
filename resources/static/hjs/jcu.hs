@@ -3,6 +3,7 @@ module JCU where
 import Control.Monad as CM (liftM, foldM, when)
 
 import Data.Array (elems)
+import Data.IORef
 import Data.List as DL
 import Data.Map   (fromList)
 import Data.Maybe (fromJust)
@@ -97,18 +98,19 @@ main = do
 initInterpreter :: IO ()
 initInterpreter = do
   obj <- mkAnonObj
-  ajaxQ GET "/rules/stored" obj addRules noop
-  registerEvents  [  ("#submitquery", Click   , submitQuery)
+  rlsref <- newIORef []
+  ajaxQ GET "/rules/stored" obj (addRules rlsref) noop
+  registerEvents  [  ("#submitquery", Click   , submitQuery rlsref)
                   ,  ("#txtAddRule" , KeyPress, noevent)
                   ,  ("#txtAddRule" , Blur    , checkTermSyntax)
                   ,  ("#btnAddRule" , Click   , addRuleEvent) ]
-  where  submitQuery _ = do
+  where  submitQuery rlsref _ = do
            qryFld <- jQuery "#query"
            qry <- valString qryFld
            case tryParseTerm qry of
              Nothing   -> markInvalidTerm qryFld
              Just goal -> do
-               rules <- getRules
+               rules <- readIORef rlsref
                showProof (solve rules emptyEnv [("0",goal)])
            return True
          showProof result = do
@@ -148,7 +150,8 @@ initProofTree = do -- Rendering
   addRuleTree
   -- Rules list
   obj <- mkAnonObj
-  ajaxQ GET "/rules/stored" obj addRules noop
+  rlsref <- newIORef []
+  ajaxQ GET "/rules/stored" obj (addRules rlsref) noop
   registerEvents  [  ("#btnCheck"  , Click   , toggleClue emptyProof)
                   ,  ("#btnAddRule", Click   , addRuleEvent)
                   ,  ("#btnReset"  , Click   , resetTree)
@@ -249,14 +252,15 @@ replaceRuleTree p = do
          complete _                  = False
 
 
-addRules :: AjaxCallback (JSArray JSRule)
-addRules obj str obj2 = do
+addRules :: IORef [Rule] -> AjaxCallback (JSArray JSRule)
+addRules rlsref obj str obj2 = do
   -- slet rules  = (Data.List.map fromJS . elems . jsArrayToArray) obj
   rules_list_div <- jQuery "#rules-list-div"
   rules_list_ul  <- jQuery "<ul id=\"rules-list-view\"/>"
   append rules_list_div rules_list_ul
   f <- mkEachIterator (\idx e -> do
     (Rule id _ rule') <- jsRule2Rule e
+    modifyIORef rlsref (addRuleRef rule')
     listItem <- createRuleLi (fromJS rule') id
     append rules_list_ul listItem
     return ())
@@ -267,6 +271,9 @@ addRules obj str obj2 = do
   draggables <- jQuery ".draggable"
   draggable draggables $ Draggable (toJS True) (toJS "document") (toJS True) 100 50 onStart
   return ()
+  where addRuleRef rl lst = case tryParseRule (fromJS rl) of
+                              Nothing  -> lst
+                              Just r   -> r : lst
 
 addRuleEvent :: EventHandler
 addRuleEvent event = do
