@@ -117,7 +117,10 @@ initInterpreter = do
           let prRes = [  concatMap (\(prefix, pr) -> prefix ++ " " ++ show (subst env pr) ++ "<br />\n") (reverse proof)
                          ++ "substitution: " ++ show env ++ "<br />\n"
                       |  (proof, env) <- enumerateDepthFirst [] result ]
-          setHTML resFld (DL.concat prRes)
+              txt = if null prRes
+                      then "Could not find an answer to that query"
+                      else DL.concat prRes
+          setHTML resFld txt
 
 checkTermSyntax _ = do inp   <- jQuery "#txtAddRule"
                        input <- valString inp
