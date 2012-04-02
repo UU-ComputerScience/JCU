@@ -102,6 +102,7 @@ initInterpreter = do
   registerEvents [ ("#submitquery", Click   , submitQuery)
                  , ("#txtAddRule" , KeyPress, noevent)
                  , ("#txtAddRule" , Blur    , checkTermSyntax)
+                 , ("#btnAddRule" , Click   , addRuleEvent)
                  ]
   where submitQuery _ = do
           qryFld <- jQuery "#query"
@@ -152,7 +153,7 @@ initProofTree = do -- Rendering
   registerEvents [("#btnCheck"  , Click    , toggleClue emptyProof)
                  ,("#btnAddRule", Click    , addRuleEvent)
                  ,("#btnReset"  , Click    , resetTree)
-                 ,("#txtAddRule", KeyPress , noevent)
+                 ,("#txtAddRule", KeyPress , clr)
                  ,("#txtAddRule", Blur     , checkTermSyntax)
                  ]
   where resetTree _ = do -- Do not forget to add the class that hides the colours
@@ -161,6 +162,8 @@ initProofTree = do -- Rendering
                          updateStore storeDoCheckId (const False)
                          replaceRuleTree emptyProof
                          return True
+        clr _ = do jQuery "#txtAddRule" >>= clearClasses
+                   return True
 
 -- Toggles checking of the proof and showing the results
 toggleClue :: Proof -> EventHandler
@@ -351,11 +354,15 @@ doSubst p _ = do sub <- jQuery "#txtSubstSub" >>= valString
                                   return True
 
 clearClasses :: JQuery -> IO ()
-clearClasses = flip removeClass "blueField yellowField redField whiteField greenField"
+clearClasses = flip removeClass' "blueField yellowField redField whiteField greenField"
 
 markInvalidTerm :: JQuery -> IO ()
 markInvalidTerm jq = do clearClasses jq
                         addClass jq "blueField"
+
+markClear :: JQuery -> IO ()
+markClear jq = do clearClasses jq
+                  addClass jq "blueField"
 
 deleteRule :: JQuery -> Int -> EventHandler
 deleteRule jq i _ = do 
