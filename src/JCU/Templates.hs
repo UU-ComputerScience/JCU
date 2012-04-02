@@ -143,10 +143,18 @@ index = mainHTML $ do
   H.input ! A.type_ "button" ! A.id "btnReset" ! A.value "Reset Tree"
   H.h3 $ H.toHtml ("Color coding help" :: Text)
   H.ul ! A.id "color-coding-list" $ do
-    H.li $ H.div ! A.class_ "box redField" $ H.toHtml ("Incorrect rule application" :: Text)
-    H.li $ H.div ! A.class_ "box yellowField" $ H.toHtml ("Incomplete proof" :: Text)
-    H.li $ H.div ! A.class_ "box greenField" $ H.toHtml ("Correct rule" :: Text)
-    H.li $ H.div ! A.class_ "box blueField" $ H.toHtml ("Syntax error" :: Text)
+    H.li $ do
+      H.div ! A.class_ "box redField" $ return ()
+      H.toHtml ("Incorrect rule application" :: Text)
+    H.li $ do
+       H.div ! A.class_ "box yellowField" $ return ()
+       H.toHtml ("Incomplete proof" :: Text)
+    H.li $ do
+       H.div ! A.class_ "box greenField" $ return ()
+       H.toHtml ("Correct rule" :: Text)
+    H.li $ do
+       H.div ! A.class_ "box blueField" $ return ()
+       H.toHtml ("Syntax error" :: Text)
   H.h3 $ H.toHtml ("Example data" :: Text)
   H.p ! A.class_ "lhsText" $ do
     H.toHtml ("Example data containing the Dutch royal family, the list structure and lookup, and the natural numbers (as discussed in the JCU lecture notes) can be loaded by " :: Text)
