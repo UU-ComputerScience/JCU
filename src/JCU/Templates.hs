@@ -112,6 +112,7 @@ mainHTML left = return $ do
 
 interpreterHTML :: Reader AuthState Html
 interpreterHTML = mainHTML $ do
+  H.h2 $ H.toHtml ("Interpreter" :: Text)
   H.input ! A.type_ "text" ! A.id "query"
   H.input ! A.type_ "button" ! A.id "submitquery" ! A.value "Submit Query"
   H.div ! A.id "output" $

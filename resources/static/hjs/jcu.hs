@@ -3,7 +3,7 @@ module JCU where
 import Control.Monad (liftM, foldM)
 
 import Data.Array (elems)
-import Data.List
+import Data.List as DL
 import Data.Map   (fromList)
 import Data.Maybe (fromJust)
 import Data.Tree as T
@@ -103,11 +103,21 @@ initInterpreter = do
                  , ("#txtAddRule" , KeyPress, noevent)
                  , ("#txtAddRule" , Blur    , checkTermSyntax)
                  ]
-  where submitQuery _ = do  obj <- mkAnonObj
-                            qryFld <- jQuery "#query"
-                            qry <- valJSString qryFld
-                            ajaxQ GET ("/interpreter/" ++ fromJS (_encodeURIComponent qry)) obj showInterpRes noop
-                            return True
+  where submitQuery _ = do
+          qryFld <- jQuery "#query"
+          qry <- valString qryFld
+          case tryParseTerm qry of
+            Nothing   -> markInvalidTerm qryFld
+            Just goal -> do
+              rules <- getRules
+              showProof (solve rules emptyEnv [("0",goal)])
+          return True
+        showProof result = do
+          resFld <- jQuery "#output"
+          let prRes = [  concatMap (\(prefix, pr) -> prefix ++ " " ++ show (subst env pr) ++ "<br />\n") (reverse proof)
+                         ++ "substitution: " ++ show env ++ "<br />\n"
+                      |  (proof, env) <- enumerateDepthFirst [] result ]
+          setHTML resFld (DL.concat prRes)
 
 checkTermSyntax _ = do inp   <- jQuery "#txtAddRule"
                        input <- valString inp
@@ -152,8 +162,7 @@ toggleClue :: Proof -> EventHandler
 toggleClue p _ = do toggleClassString "#proof-tree-div" "noClue"
                     updateStore storeDoCheckId not
                     replaceRuleTree p
-                    return True                
-                                          
+                    return True
 
 emptyProof :: Proof
 emptyProof = T.Node (Var "") []
@@ -290,16 +299,19 @@ createRuleLi rule id = do item <- jQuery $ "<li>" ++ rules_list_item rule ++ "</
 --   added rules in a different window or deleted them there those changes will
 --   not be visible here.
 checkProof :: Proof -> IO PCheck
-checkProof p = do rules  <- jQuery ".rule-list-item" >>= jQueryToArray
-                  rules' <- (mapM f . elems . jsArrayToArray) rules
+checkProof p = do rules' <- getRules
                   doCheck <- readStore storeDoCheckId
                   if doCheck then
                       return $ Prolog.checkProof rules' p
                     else
                       return $ Prolog.dummyProof p
+
+getRules :: IO [Rule]
+getRules = do
+  rules  <- jQuery ".rule-list-item" >>= jQueryToArray
+  (mapM f . elems . jsArrayToArray) rules
   where f x =    getAttr "innerText" x 
             >>=  return . fromJust . tryParseRule . (fromJS :: JSString -> String)
-
 
 -- | This is how I think checkProof should look when using workers.                          
 -- checkProof :: Proof -> (PCheck -> IO ()) -> IO ()
@@ -323,7 +335,7 @@ checkProof p = do rules  <- jQuery ".rule-list-item" >>= jQueryToArray
 
 -- foreign import js "_deepe_"
 --   deepE :: a -> IO a
-                    
+
 doSubst :: Proof -> EventHandler
 doSubst p _ = do sub <- jQuery "#txtSubstSub" >>= valString
                  for <- jQuery "#txtSubstFor" >>= valString
@@ -332,14 +344,14 @@ doSubst p _ = do sub <- jQuery "#txtSubstSub" >>= valString
                    (Just t) -> do let newP = subst (Env $ fromList [(for, t)]) p
                                   replaceRuleTree newP
                                   return True
-                                  
+
 clearClasses :: JQuery -> IO ()
 clearClasses = flip removeClass "blueField yellowField redField whiteField greenField"
 
 markInvalidTerm :: JQuery -> IO ()
 markInvalidTerm jq = do clearClasses jq
                         addClass jq "blueField"
-        
+
 deleteRule :: JQuery -> Int -> EventHandler
 deleteRule jq i _ = do 
   ajaxQ DELETE ("/rules/stored/"++show i) i removeLi noop
