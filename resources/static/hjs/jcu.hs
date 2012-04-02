@@ -115,8 +115,10 @@ initInterpreter = do
         showProof result = do
           resFld <- jQuery "#output"
           let prRes = [  concatMap (\(prefix, pr) -> prefix ++ " " ++ show (subst env pr) ++ "<br />\n") (reverse proof)
-                         ++ "substitution: " ++ show env ++ "<br /><br />\n"
+                         ++ envToStr (show env) ++ "<br /><br />\n"
                       |  (proof, env) <- enumerateDepthFirst [] result ]
+              envToStr env | DL.null env = ""
+                           | otherwise   = "substitution: " ++ env
               txt = if null prRes
                       then "Could not find an answer to that query"
                       else DL.concat prRes
