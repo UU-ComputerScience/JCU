@@ -17,7 +17,7 @@ data Status    =  Correct
                |  Incomplete
                |  Invalid
                deriving Show
-               
+
 dummyProof :: Proof -> PCheck
 -- dummyProof = fmap (const Incomplete)
 dummyProof (Node _ xs) = Node Incomplete (map dummyProof xs)
@@ -54,11 +54,11 @@ tryRule tm cs (lhs :<-: rhs) =
 
 instance Subst (Tree Term) where
   subst env (Node tm cs) = Node (subst env tm) (subst env cs)
-  
-  
+
+
 data DropRes   =  DropRes Bool Proof
                deriving Show
-  
+
 dropUnify :: Proof -> [Int] -> Rule -> DropRes
 dropUnify prf []          _                               = DropRes False prf
 dropUnify prf tns@(_:ns)  (t :<-: ts)  |  isNothing tmnd  = DropRes False prf

@@ -1,7 +1,7 @@
 module Templates where
-  
-import Prolog (Status(..))  
-  
+
+import Prolog (Status(..))
+
 proof_tree_item term treeLbl disabled status = 
   "<div class=\"tree_item dropzone\">  " ++ treeLbl ++ 
     ". <input type=\"text\" class=\"droppable " ++ statusClass status ++ "\" id=\"proof_" ++ treeLbl ++ "\" value=\"" ++ term ++ "\"" ++ disabled' ++ " /></div>"
@@ -10,7 +10,7 @@ proof_tree_item term treeLbl disabled status =
     statusClass Correct     = "greenField"
     statusClass Incomplete  = "yellowField"
     statusClass Invalid     = "redField"
-    
+
 rules_list_item :: String -> String  
 rules_list_item rule = 
   let rule_replaced = rule -- replace /[^a-zA-Z0-9]+/g, "" 

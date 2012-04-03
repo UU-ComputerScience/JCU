@@ -260,7 +260,7 @@ addRules rlsref obj str obj2 = do
   rules_list_ul  <- jQuery "<ul id=\"rules-list-view\"/>"
   append rules_list_div rules_list_ul
   f <- mkEachIterator (\idx e -> do
-    (Rule id _ rule') <- jsRule2Rule e
+    Rule id _ rule' <- fromJS (e :: JSRule)
     modifyIORef rlsref (addRuleRef rule')
     listItem <- createRuleLi (fromJS rule') id
     append rules_list_ul listItem
