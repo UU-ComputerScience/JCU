@@ -109,22 +109,14 @@ initInterpreter = do
            qryFld <- jQuery "#query"
            qry <- valString qryFld
            case tryParseTerm qry of
-             Nothing   -> markInvalidTerm qryFld
-             Just goal -> do
-               rules <- readIORef rlsref
-               showProof (solve rules emptyEnv [("0",goal)])
+             Nothing  -> markInvalidTerm qryFld
+             Just _   -> do
+               obj <- mkAnonObj
+               ajaxQ GET ("/interpreter/" ++ encodeURIComponent qry) obj showProof noop
            return True
-         showProof result = do
+         showProof result _ _ = do
            resFld <- jQuery "#output"
-           let prRes = [  concatMap (\(prefix, pr) -> prefix ++ " " ++ show (subst env pr) ++ "<br />\n") (reverse proof)
-                          ++ envToStr (show env) ++ "<br /><br />\n"
-                       |  (proof, env) <- enumerateDepthFirst [] result ]
-               envToStr env | DL.null env = ""
-                            | otherwise   = "substitution: " ++ env
-               txt = if null prRes
-                       then "Could not find an answer to that query"
-                       else DL.concat prRes
-           setHTML resFld txt
+           _setHTML resFld result
 
 checkTermSyntax :: EventHandler
 checkTermSyntax _ = do

@@ -73,6 +73,7 @@ jcu = makeSnaplet "jcu" "Prolog proof tree practice application" Nothing $ do
              ,  ("/logout",  logoutH)
              ,  ("/signup",  signupH)
              ,  ("/interpreter",  method GET interpreterH)
+             ,  ("/interpreter/:query",  method GET runInterpreterH)
              ,  ("/rules/stored",  method GET   readStoredRulesH)
              ,  ("/rules/stored",  method POST  addStoredRuleH)
              ,  ("/rules/stored/:id",  method DELETE  deleteStoredRuleH)
@@ -171,6 +172,21 @@ logoutH = do
 
 interpreterH :: AppHandler ()
 interpreterH = restrict forbiddenH $ blaze (template interpreterHTML)
+
+runInterpreterH :: AppHandler ()
+runInterpreterH = restrict forbiddenH $ do
+  qry <- getParam "query"
+  case qry of
+    Nothing  -> writeBS "Failed to produce a solution"
+    Just q'  -> do  let (goal, errs) = startParse pTerm (BS.unpack q')
+                    if null errs
+                      then do
+                        rs <- getStoredRules =<< getUserId
+                        let rules = [r |(DBRule _ _ r) <- rs]
+                        let result = solve rules emptyEnv [("0", goal)]
+                            shpref env (prefix, pr) = prefix ++ " " ++ show (subst env pr) ++ "<br />\n"
+                        writeBS . BS.pack $ show $ concat [concatMap (shpref env) (reverse proof) ++ "substitution: " ++ show env ++ "<br /><br />\n" | (proof, env) <- enumerateDepthFirst [] result]
+                      else writeBS . BS.pack $ "There has been an error"
 
 readStoredRulesH :: AppHandler ()
 readStoredRulesH = restrict forbiddenH $ do
