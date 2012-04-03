@@ -46,6 +46,7 @@ import Array
 import Templates
 import Models
 
+type RulesRef = IORef [Rule]
 
 ----
 --   Constants
@@ -103,7 +104,7 @@ initInterpreter = do
   registerEvents  [  ("#submitquery", Click   , submitQuery rlsref)
                   ,  ("#txtAddRule" , KeyPress, noevent)
                   ,  ("#txtAddRule" , Blur    , checkTermSyntax)
-                  ,  ("#btnAddRule" , Click   , addRuleEvent) ]
+                  ,  ("#btnAddRule" , Click   , addRuleEvent rlsref) ]
   where  submitQuery rlsref _ = do
            qryFld <- jQuery "#query"
            qry <- valString qryFld
@@ -147,61 +148,61 @@ initProofTree :: IO ()
 initProofTree = do -- Rendering
   l <- jQuery "#mainLeft"
   -- Proof tree
-  addRuleTree
+  rlsref <- newIORef []
+  addRuleTree rlsref
   -- Rules list
   obj <- mkAnonObj
-  rlsref <- newIORef []
   ajaxQ GET "/rules/stored" obj (addRules rlsref) noop
-  registerEvents  [  ("#btnCheck"  , Click   , toggleClue emptyProof)
-                  ,  ("#btnAddRule", Click   , addRuleEvent)
-                  ,  ("#btnReset"  , Click   , resetTree)
+  registerEvents  [  ("#btnCheck"  , Click   , toggleClue rlsref emptyProof)
+                  ,  ("#btnAddRule", Click   , addRuleEvent rlsref)
+                  ,  ("#btnReset"  , Click   , resetTree rlsref)
                   ,  ("#txtAddRule", KeyPress, clr)
                   ,  ("#txtAddRule", Blur    , checkTermSyntax) ]
-  where  resetTree _ = do -- Do not forget to add the class that hides the colours
+  where  resetTree rlsref _ = do -- Do not forget to add the class that hides the colours
            jQuery "#proof-tree-div" >>= flip addClass "noClue"
            -- Always store False in the store.
            updateStore storeDoCheckId (const False)
-           replaceRuleTree emptyProof
+           replaceRuleTree rlsref emptyProof
            return True
          clr _ = jQuery "#txtAddRule" >>= clearClasses >> return True
 
 -- Toggles checking of the proof and showing the results
-toggleClue :: Proof -> EventHandler
-toggleClue p _ = do
+toggleClue :: RulesRef -> Proof -> EventHandler
+toggleClue rlsref p _ = do
   toggleClassString "#proof-tree-div" "noClue"
   updateStore storeDoCheckId not
-  replaceRuleTree p
+  replaceRuleTree rlsref p
   return True
 
 emptyProof :: Proof
 emptyProof = T.Node (Var "") []
 
-addRuleTree :: IO ()
-addRuleTree = do
+addRuleTree :: RulesRef -> IO ()
+addRuleTree rlsref = do
   let status = T.Node Correct []
   ruleTreeDiv <- jQuery "#proof-tree-div"
-  ruleTreeUL  <- buildRuleUl emptyProof status
+  ruleTreeUL  <- buildRuleUl rlsref emptyProof status
   append ruleTreeDiv ruleTreeUL
 
 -- | Builds up the rule tree  
-buildRuleUl :: Proof -> PCheck -> IO JQuery
-buildRuleUl node status =
+buildRuleUl :: RulesRef -> Proof -> PCheck -> IO JQuery
+buildRuleUl rlsref node status =
   do topUL <- jQuery "<ul id=\"proof-tree-view\" class=\"tree\"/>"
-     restUL <- build' [0] node (node, status) False
+     restUL <- build' rlsref [0] node (node, status) False
      append topUL restUL
      inputField <- findSelector restUL "input"
-     eh  <- mkJThisEventHandler fCheck
+     eh  <- mkJThisEventHandler (fCheck rlsref)
      eh' <- wrappedJQueryEvent eh
      _bind inputField (toJS "blur") eh'
      return topUL
   where
-    f :: [Int] -> Proof -> (JQuery, Int) -> (Proof, PCheck) -> IO (JQuery, Int)
-    f lvl wp (jq, n) (node, status) = do
-      li' <- build' (lvl ++ [n]) wp (node,status) True
+    f :: RulesRef -> [Int] -> Proof -> (JQuery, Int) -> (Proof, PCheck) -> IO (JQuery, Int)
+    f rlsref lvl wp (jq, n) (node, status) = do
+      li' <- build' rlsref (lvl ++ [n]) wp (node,status) True
       append jq li'
       return (jq, n + 1)
-    onDrop :: Proof -> [Int] -> Proof -> UIThisEventHandler
-    onDrop wp lvl node this _ ui = do
+    onDrop :: RulesRef -> Proof -> [Int] -> Proof -> UIThisEventHandler
+    onDrop rlsref wp lvl node this _ ui = do
       elemVal <- findSelector this "input[type='text']:first" >>= valString
       jsRuleText <- (getAttr "draggable" ui >>= getAttr "context" >>= getAttr "innerText") :: IO JSString
       let ruleText = fromJS jsRuleText :: String
@@ -211,37 +212,37 @@ buildRuleUl node status =
                 Nothing  -> showError "This should not happen. Dropping an invalid rule here."
                 Just t   -> case dropUnify wp lvl t of
                               DropRes False  _  -> showError "I could not unify this."
-                              DropRes True   p  -> replaceRuleTree p
+                              DropRes True   p  -> replaceRuleTree rlsref p
       return True
 
-    build' :: [Int] -> Proof -> (Proof, PCheck) -> Bool -> IO JQuery
-    build' lvl wp (n@(T.Node term chts), T.Node status chstat) disabled = do
+    build' :: RulesRef -> [Int] -> Proof -> (Proof, PCheck) -> Bool -> IO JQuery
+    build' rlsref lvl wp (n@(T.Node term chts), T.Node status chstat) disabled = do
       li <- jQuery "<li/>"
       appendString li $ proof_tree_item (show term) (intercalate "." $ map show lvl) disabled status
       dropzones <- findSelector li ".dropzone"
-      drop      <- mkJUIThisEventHandler (onDrop wp lvl n) >>= wrappedJQueryUIEvent
+      drop      <- mkJUIThisEventHandler (onDrop rlsref wp lvl n) >>= wrappedJQueryUIEvent
       droppable dropzones $ Droppable (toJS "dropHover") drop
       startUl   <- jQuery "<ul/>"
-      (res, _)  <- foldM (f lvl wp) (startUl, 1) (zip chts chstat)
+      (res, _)  <- foldM (f rlsref lvl wp) (startUl, 1) (zip chts chstat)
       append li res
       return li
 
-    fCheck :: ThisEventHandler
-    fCheck this _ = do
+    fCheck :: RulesRef -> ThisEventHandler
+    fCheck rlsref this _ = do
       term <- valString this
       case tryParseTerm term of
-        Just t  -> replaceRuleTree $ T.Node t []
+        Just t  -> replaceRuleTree rlsref $ T.Node t []
         _       -> markInvalidTerm this
       return False
 
-replaceRuleTree :: Proof -> IO ()
-replaceRuleTree p = do
-  status  <- checkProof p
+replaceRuleTree :: RulesRef -> Proof -> IO ()
+replaceRuleTree rlsref p = do
+  status  <- checkProof rlsref p
   oldUL   <- jQuery ruleTreeId
-  newUL   <- buildRuleUl p status
+  newUL   <- buildRuleUl rlsref p status
   -- Store new proof in the subst funct
-  registerEvents  [  ("#btnCheck", Click, toggleClue p)
-                  ,  ("#btnSubst", Click, doSubst p) ]
+  registerEvents  [  ("#btnCheck", Click, toggleClue rlsref p)
+                  ,  ("#btnSubst", Click, doSubst rlsref p) ]
   -- Draw the new ruleTree
   replaceWith oldUL newUL
   CM.when (complete status) $
@@ -252,7 +253,7 @@ replaceRuleTree p = do
          complete _                  = False
 
 
-addRules :: IORef [Rule] -> AjaxCallback (JSArray JSRule)
+addRules :: RulesRef -> AjaxCallback (JSArray JSRule)
 addRules rlsref obj str obj2 = do
   -- slet rules  = (Data.List.map fromJS . elems . jsArrayToArray) obj
   rules_list_div <- jQuery "#rules-list-div"
@@ -275,13 +276,14 @@ addRules rlsref obj str obj2 = do
                               Nothing  -> lst
                               Just r   -> r : lst
 
-addRuleEvent :: EventHandler
-addRuleEvent event = do
+addRuleEvent :: RulesRef -> EventHandler
+addRuleEvent rlsref event = do
   rule  <- jQuery "#txtAddRule" >>= valJSString
   case tryParseRule (fromJS rule) of
     Nothing  ->  showError "Invalid rule, not adding to rule list."
-    Just _   ->  let  str = foldl1 JSString.concat [toJS "{\"rule\":\"", rule, toJS "\"}"]
-                 in   ajaxQ POST "/rules/stored" str (onSuccess (fromJS rule)) onFail
+    Just r   ->  let  str = foldl1 JSString.concat [toJS "{\"rule\":\"", rule, toJS "\"}"]
+                 in   do  modifyIORef rlsref (r :)
+                          ajaxQ POST "/rules/stored" str (onSuccess (fromJS rule)) onFail
   return True
   where  onSuccess :: String -> AjaxCallback Int
          onSuccess r id _ _ = do ul   <- jQuery "ul#rules-list-view" 
@@ -299,19 +301,13 @@ createRuleLi rule id = do
 -- | Checks the current proof against the current list of rules. If the user
 --   added rules in a different window or deleted them there those changes will
 --   not be visible here.
-checkProof :: Proof -> IO PCheck
-checkProof p = do
-  rules' <- getRules
-  doCheck <- readStore storeDoCheckId
+checkProof :: RulesRef -> Proof -> IO PCheck
+checkProof rlsref p = do
+  rules'   <- readIORef rlsref
+  doCheck  <- readStore storeDoCheckId
   return $ if doCheck
              then Prolog.checkProof rules' p
              else Prolog.dummyProof p
-
-getRules :: IO [Rule]
-getRules = do
-  rules  <- jQuery ".rule-list-item" >>= jQueryToArray
-  (mapM f . elems . jsArrayToArray) rules
-  where f x = return . fromJust . tryParseRule . (fromJS :: JSString -> String) =<< getAttr "innerText" x
 
 -- | This is how I think checkProof should look when using workers.
 -- checkProof :: Proof -> (PCheck -> IO ()) -> IO ()
@@ -336,14 +332,14 @@ getRules = do
 -- foreign import js "_deepe_"
 --   deepE :: a -> IO a
 
-doSubst :: Proof -> EventHandler
-doSubst p _ = do
+doSubst :: RulesRef -> Proof -> EventHandler
+doSubst rlsref p _ = do
   sub <- jQuery "#txtSubstSub" >>= valString
   for <- jQuery "#txtSubstFor" >>= valString
   case tryParseTerm sub of
     Nothing  ->  return False
     Just t   ->  let  newP = subst (Env $ fromList [(for, t)]) p
-                 in   replaceRuleTree newP >> return True
+                 in   replaceRuleTree rlsref newP >> return True
 
 clearClasses :: JQuery -> IO ()
 clearClasses = flip removeClass' "blueField yellowField redField whiteField greenField"
