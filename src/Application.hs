@@ -178,16 +178,17 @@ runInterpreterH = restrict forbiddenH $ do
   qry <- getParam "query"
   case qry of
     Nothing  -> writeBS "Failed to produce a solution"
-    Just q'  -> do  let (goal, errs) = startParse pTerm (BS.unpack q')
-                    if null errs
-                      then do
-                        rs <- getStoredRules =<< getUserId
-                        let rules   = [r |(DBRule _ _ r) <- rs]
-                            result  = solve rules emptyEnv [("0", goal)]
-                            shpref env (prefix, pr) = prefix ++ " " ++ show (subst env pr) ++ "<br />\n"
-                            mkTree proof env = concatMap (shpref env) (reverse proof) ++ "substitution: " ++ show env ++ "<br /><br />\n"
-                        writeBS . BS.pack $ concat [mkTree proof env | (proof, env) <- enumerateDepthFirst [] result]
-                      else writeBS "There has been an error"
+    Just q'  -> do
+      let (goal, errs) = startParse pTerm (BS.unpack q')
+      if null errs
+        then do
+          rs <- getStoredRules =<< getUserId
+          let rules   = [r |(DBRule _ _ r) <- rs]
+              result  = solve rules emptyEnv [("0", goal)]
+              shpref env (prefix, pr) = prefix ++ " " ++ show (subst env pr) ++ "<br />\n"
+              mkTree proof env = concatMap (shpref env) (reverse proof) ++ (if DM.null (fromEnv env) then "" else "substitution: " ++ show env) ++ "<br /><br />\n"
+          writeBS . BS.pack $ concat [mkTree proof env | (proof, env) <- enumerateDepthFirst [] result]
+        else writeBS "There has been an error"
 
 readStoredRulesH :: AppHandler ()
 readStoredRulesH = restrict forbiddenH $ do
