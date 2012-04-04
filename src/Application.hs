@@ -187,7 +187,7 @@ runInterpreterH = restrict forbiddenH $ do
                             shpref env (prefix, pr) = prefix ++ " " ++ show (subst env pr) ++ "<br />\n"
                             mkTree proof env = concatMap (shpref env) (reverse proof) ++ "substitution: " ++ show env ++ "<br /><br />\n"
                         writeBS . BS.pack $ concat [mkTree proof env | (proof, env) <- enumerateDepthFirst [] result]
-                      else writeBS . BS.pack $ "There has been an error"
+                      else writeBS "There has been an error"
 
 readStoredRulesH :: AppHandler ()
 readStoredRulesH = restrict forbiddenH $ do
