@@ -171,7 +171,7 @@ logoutH = do
   redirect "/"
 
 interpreterH :: AppHandler ()
-interpreterH = restrict forbiddenH $ blaze (template interpreterHTML)
+interpreterH = restrict loginRedir $ blaze (template interpreterHTML)
 
 runInterpreterH :: AppHandler ()
 runInterpreterH = restrict forbiddenH $ do
