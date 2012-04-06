@@ -174,6 +174,7 @@ addRuleTree rlsref = do
   let status = T.Node Correct []
   ruleTreeDiv <- jQuery "#proof-tree-div"
   ruleTreeUL  <- buildRuleUl rlsref emptyProof status
+  setHTML ruleTreeDiv "" -- TODO: This is ugly....
   append ruleTreeDiv ruleTreeUL
 
 -- | Builds up the rule tree  
