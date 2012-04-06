@@ -141,6 +141,9 @@ index = mainHTML $ do
   H.input ! A.type_ "hidden" ! A.id "storeDoChecking" ! A.value "False"
   H.input ! A.type_ "button" ! A.id "btnCheck" ! A.value "Check Proof"
   H.input ! A.type_ "button" ! A.id "btnReset" ! A.value "Reset Tree"
+  H.h3 $ H.toHtml ("The Goal" :: Text)
+  H.p ! A.class_ "lhsText" $
+    H.toHtml ("With this exercise you get to do what a Prolog interpreter usually does for you: unifying terms and rules and find substitutions for variables. To start, you enter a Prolog query in the textfield above. Your job then is to proof that there exist solutions for this query. This is done by dragging rules from the right-hand side of the screen onto your query. This will unify the two and produce new terms to proof. When the bottom text fields all contain facts, your work is done! If you do not have rules and facts yet, you can load the examples below and/or add new ones yourself using the text field on the right-hand side of the screen. Good luck!" :: Text)
   H.h3 $ H.toHtml ("Color coding help" :: Text)
   H.ul ! A.id "color-coding-list" $ do
     H.li $ do

@@ -102,9 +102,10 @@ initInterpreter = do
   rlsref <- newIORef []
   ajaxQ GET "/rules/stored" obj (addRules rlsref) noop
   registerEvents  [  ("#submitquery", Click   , submitQuery rlsref)
-                  ,  ("#txtAddRule" , KeyPress, noevent)
+                  ,  ("#txtAddRule" , KeyPress, addRuleKeypress rlsref)
                   ,  ("#txtAddRule" , Blur    , checkTermSyntax)
-                  ,  ("#btnAddRule" , Click   , addRuleEvent rlsref) ]
+                  ,  ("#btnAddRule" , Click   , addRuleEvent rlsref)
+                  ,  ("#query"      , KeyPress, queryKeyPress rlsref) ]
   where  submitQuery rlsref _ = do
            qryFld <- jQuery "#query"
            qry <- valString qryFld
@@ -117,6 +118,16 @@ initInterpreter = do
          showProof result _ _ = do
            resFld <- jQuery "#output"
            _setHTML resFld result
+         addRuleKeypress rlsref obj = do
+           (which :: Int) <- getAttr "which" obj
+           when ((which :: Int) == 13) $
+             addRuleEvent rlsref undefined >> return ()
+           return True
+         queryKeyPress rlsref obj = do
+           (which :: Int) <- getAttr "which" obj
+           when ((which :: Int) == 13) $
+             submitQuery rlsref undefined >> return ()
+           return True
 
 checkTermSyntax :: EventHandler
 checkTermSyntax _ = do
@@ -148,7 +159,7 @@ initProofTree = do -- Rendering
   registerEvents  [  ("#btnCheck"  , Click   , toggleClue rlsref emptyProof)
                   ,  ("#btnAddRule", Click   , addRuleEvent rlsref)
                   ,  ("#btnReset"  , Click   , resetTree rlsref)
-                  ,  ("#txtAddRule", KeyPress, clr)
+                  ,  ("#txtAddRule", KeyPress, clr rlsref)
                   ,  ("#txtAddRule", Blur    , checkTermSyntax) ]
   where  resetTree rlsref _ = do -- Do not forget to add the class that hides the colours
            jQuery "#proof-tree-div" >>= flip addClass "noClue"
@@ -156,7 +167,11 @@ initProofTree = do -- Rendering
            updateStore storeDoCheckId (const False)
            replaceRuleTree rlsref emptyProof
            return True
-         clr _ = jQuery "#txtAddRule" >>= clearClasses >> return True
+         clr rlsref obj = do
+           which <- getAttr "which" obj
+           when ((which :: Int) == 13) $
+             addRuleEvent rlsref undefined >> return ()
+           jQuery "#txtAddRule" >>= clearClasses >> return True
 
 -- Toggles checking of the proof and showing the results
 toggleClue :: RulesRef -> Proof -> EventHandler
