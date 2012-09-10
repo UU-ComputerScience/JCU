@@ -1,8 +1,8 @@
 module Main where
 
-import Language.UHC.JScript.WebWorker 
+import Language.UHC.JS.WebWorker 
 
-import Language.UHC.JScript.Prelude
+import Language.UHC.JS.Prelude
 import Language.Prolog.NanoProlog.NanoProlog
 
 import Prolog

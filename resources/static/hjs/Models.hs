@@ -1,8 +1,8 @@
 module Models where
 
-import Language.UHC.JScript.ECMA.String
-import Language.UHC.JScript.Primitives
-import Language.UHC.JScript.Types
+import Language.UHC.JS.ECMA.String
+import Language.UHC.JS.Primitives
+import Language.UHC.JS.Types
 
 import Data.List (find)
 

@@ -1,6 +1,6 @@
 module JCU where
 
-import Control.Monad as CM (liftM, foldM, when)
+import qualified Control.Monad as CM (liftM, foldM, when)
 
 import Data.Array (elems)
 import Data.IORef
@@ -9,27 +9,27 @@ import Data.Map   (fromList)
 import Data.Maybe (fromJust)
 import Data.Tree as T
 
-import Language.UHC.JScript.Prelude
-import Language.UHC.JScript.Types -- (JS, toJS, fromJS, FromJS)
-import Language.UHC.JScript.Primitives
-import Language.UHC.JScript.JQuery.JQuery
-import Language.UHC.JScript.W3C.HTML5 as HTML5
+import Language.UHC.JS.Prelude
+import Language.UHC.JS.Types -- (JS, toJS, fromJS, FromJS)
+import Language.UHC.JS.Primitives
+import Language.UHC.JS.JQuery.JQuery as JQ
+import Language.UHC.JS.W3C.HTML5 as HTML5
 
-import Language.UHC.JScript.ECMA.Bool
-import Language.UHC.JScript.ECMA.String as JSString
+import Language.UHC.JS.ECMA.Bool
+import Language.UHC.JS.ECMA.String as JSString
 
 
-import Language.UHC.JScript.Assorted (alert , _alert)
+import Language.UHC.JS.Assorted (alert , _alert)
 
-import Language.UHC.JScript.JQuery.Ajax as Ajax
-import qualified Language.UHC.JScript.JQuery.AjaxQueue as AQ
-import Language.UHC.JScript.JQuery.Draggable
-import Language.UHC.JScript.JQuery.Droppable
+import Language.UHC.JS.JQuery.Ajax as Ajax
+import qualified Language.UHC.JS.JQuery.AjaxQueue as AQ
+import Language.UHC.JS.JQuery.Draggable
+import Language.UHC.JS.JQuery.Droppable
 
-import Language.Prolog.NanoProlog.NanoProlog
+import qualified Language.Prolog.NanoProlog.NanoProlog as NP
 import Language.Prolog.NanoProlog.ParserUUTC
 
-import Language.UHC.JScript.JQuery.Deferred
+import Language.UHC.JS.JQuery.Deferred
 
 {-import Language.UHC.JScript.WebWorker -}
 
@@ -37,16 +37,16 @@ import Language.UHC.JScript.JQuery.Deferred
 --  App
 ----
 
-import Prolog
+import qualified Prolog
 
-import Language.UHC.JScript.ECMA.Array as ECMAArray (JSArray, jsArrayToArray)
+import qualified Language.UHC.JS.ECMA.Array as ECMAArray (JSArray, jsArrayToArray)
 
 import Array
 
 import Templates
 import Models
 
-type RulesRef = IORef [Rule]
+type RulesRef = IORef [NP.Rule]
 
 ----
 --   Constants
@@ -120,12 +120,12 @@ initInterpreter = do
            _setHTML resFld result
          addRuleKeypress rlsref obj = do
            (which :: Int) <- getAttr "which" obj
-           when ((which :: Int) == 13) $
+           CM.when ((which :: Int) == 13) $
              addRuleEvent rlsref undefined >> return ()
            return True
          queryKeyPress rlsref obj = do
            (which :: Int) <- getAttr "which" obj
-           when ((which :: Int) == 13) $
+           CM.when ((which :: Int) == 13) $
              submitQuery rlsref undefined >> return ()
            return True
 
@@ -169,31 +169,31 @@ initProofTree = do -- Rendering
            return True
          clr rlsref obj = do
            which <- getAttr "which" obj
-           when ((which :: Int) == 13) $
+           CM.when ((which :: Int) == 13) $
              addRuleEvent rlsref undefined >> return ()
            jQuery "#txtAddRule" >>= clearClasses >> return True
 
 -- Toggles checking of the proof and showing the results
-toggleClue :: RulesRef -> Proof -> EventHandler
+toggleClue :: RulesRef -> Prolog.Proof -> EventHandler
 toggleClue rlsref p _ = do
   toggleClassString "#proof-tree-div" "noClue"
   updateStore storeDoCheckId not
   replaceRuleTree rlsref p
   return True
 
-emptyProof :: Proof
-emptyProof = T.Node (Var "") []
+emptyProof :: Prolog.Proof
+emptyProof = T.Node (NP.Var "") []
 
 addRuleTree :: RulesRef -> IO ()
 addRuleTree rlsref = do
-  let status = T.Node Correct []
+  let status = T.Node Prolog.Correct []
   ruleTreeDiv <- jQuery "#proof-tree-div"
   ruleTreeUL  <- buildRuleUl rlsref emptyProof status
   setHTML ruleTreeDiv "" -- TODO: This is ugly....
   append ruleTreeDiv ruleTreeUL
 
 -- | Builds up the rule tree
-buildRuleUl :: RulesRef -> Proof -> PCheck -> IO JQuery
+buildRuleUl :: RulesRef -> Prolog.Proof -> Prolog.PCheck -> IO JQuery
 buildRuleUl rlsref node status =
   do topUL <- jQuery "<ul id=\"proof-tree-view\" class=\"tree\"/>"
      restUL <- build' rlsref [0] node (node, status) False
@@ -204,12 +204,12 @@ buildRuleUl rlsref node status =
      _bind inputField (toJS "blur") eh'
      return topUL
   where
-    f :: RulesRef -> [Int] -> Proof -> (JQuery, Int) -> (Proof, PCheck) -> IO (JQuery, Int)
+    f :: RulesRef -> [Int] -> Prolog.Proof -> (JQuery, Int) -> (Prolog.Proof, Prolog.PCheck) -> IO (JQuery, Int)
     f rlsref lvl wp (jq, n) (node, status) = do
       li' <- build' rlsref (lvl ++ [n]) wp (node,status) True
       append jq li'
       return (jq, n + 1)
-    onDrop :: RulesRef -> Proof -> [Int] -> Proof -> UIThisEventHandler
+    onDrop :: RulesRef -> Prolog.Proof -> [Int] -> Prolog.Proof -> UIThisEventHandler
     onDrop rlsref wp lvl node this _ ui = do
       elemVal <- findSelector this "input[type='text']:first" >>= valString
       jsRuleText <- (getAttr "draggable" ui >>= getAttr "context" >>= getAttr "innerText") :: IO JSString
@@ -218,12 +218,12 @@ buildRuleUl rlsref node status =
         then  showError "There needs to be a term in the text field!"
         else  case tryParseRule ruleText of
                 Nothing  -> showError "This should not happen. Dropping an invalid rule here."
-                Just t   -> case dropUnify wp lvl t of
-                              DropRes False  _  -> showError "I could not unify this."
-                              DropRes True   p  -> replaceRuleTree rlsref p
+                Just t   -> case Prolog.dropUnify wp lvl t of
+                              Prolog.DropRes False  _  -> showError "I could not unify this."
+                              Prolog.DropRes True   p  -> replaceRuleTree rlsref p
       return True
 
-    build' :: RulesRef -> [Int] -> Proof -> (Proof, PCheck) -> Bool -> IO JQuery
+    build' :: RulesRef -> [Int] -> Prolog.Proof -> (Prolog.Proof, Prolog.PCheck) -> Bool -> IO JQuery
     build' rlsref lvl wp (n@(T.Node term chts), T.Node status chstat) disabled = do
       li <- jQuery "<li/>"
       appendString li $ proof_tree_item (show term) (intercalate "." $ map show lvl) disabled status
@@ -231,7 +231,7 @@ buildRuleUl rlsref node status =
       drop      <- mkJUIThisEventHandler (onDrop rlsref wp lvl n) >>= wrappedJQueryUIEvent
       droppable dropzones $ Droppable (toJS "dropHover") drop
       startUl   <- jQuery "<ul/>"
-      (res, _)  <- foldM (f rlsref lvl wp) (startUl, 1) (zip chts chstat)
+      (res, _)  <- CM.foldM (f rlsref lvl wp) (startUl, 1) (zip chts chstat)
       append li res
       return li
 
@@ -243,7 +243,7 @@ buildRuleUl rlsref node status =
         _       -> markInvalidTerm this
       return False
 
-replaceRuleTree :: RulesRef -> Proof -> IO ()
+replaceRuleTree :: RulesRef -> Prolog.Proof -> IO ()
 replaceRuleTree rlsref p = do
   status  <- checkProof rlsref p
   oldUL   <- jQuery ruleTreeId
@@ -255,9 +255,9 @@ replaceRuleTree rlsref p = do
   replaceWith oldUL newUL
   CM.when (complete status) $
     showInfo "Congratulations! You have successfully completed your proof!"
-  where  complete :: PCheck -> Bool
-         complete (T.Node Correct [])  = True
-         complete (T.Node Correct xs)  = all complete xs
+  where  complete :: Prolog.PCheck -> Bool
+         complete (T.Node Prolog.Correct [])  = True
+         complete (T.Node Prolog.Correct xs)  = all complete xs
          complete _                    = False
 
 addRules :: RulesRef -> AjaxCallback (JSArray JSRule)
@@ -308,7 +308,7 @@ createRuleLi rule id = do
 -- | Checks the current proof against the current list of rules. If the user
 --   added rules in a different window or deleted them there those changes will
 --   not be visible here.
-checkProof :: RulesRef -> Proof -> IO PCheck
+checkProof :: RulesRef -> Prolog.Proof -> IO Prolog.PCheck
 checkProof rlsref p = do
   rules'   <- readIORef rlsref
   doCheck  <- readStore storeDoCheckId
@@ -339,13 +339,13 @@ checkProof rlsref p = do
 -- foreign import js "_deepe_"
 --   deepE :: a -> IO a
 
-doSubst :: RulesRef -> Proof -> EventHandler
+doSubst :: RulesRef -> Prolog.Proof -> EventHandler
 doSubst rlsref p _ = do
   sub <- jQuery "#txtSubstSub" >>= valString
   for <- jQuery "#txtSubstFor" >>= valString
   case tryParseTerm sub of
     Nothing  ->  return False
-    Just t   ->  let  newP = subst (Env $ fromList [(for, t)]) p
+    Just t   ->  let  newP = NP.subst (NP.Env $ fromList [(for, t)]) p
                  in   replaceRuleTree rlsref newP >> return True
 
 clearClasses :: JQuery -> IO ()

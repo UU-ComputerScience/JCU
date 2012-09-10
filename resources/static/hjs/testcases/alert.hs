@@ -1,9 +1,9 @@
 module Main where
 
-import Language.UHC.JScript.Assorted (alert)
-import Language.UHC.JScript.Types (fromJS)
+import Language.UHC.JS.Assorted (alert)
+import Language.UHC.JS.Types (fromJS)
 
-import Language.UHC.JScript.ECMA.String (JSString)
+import Language.UHC.JS.ECMA.String (JSString)
 
 foreign import js "window.location.href"
   windowHref :: JSString

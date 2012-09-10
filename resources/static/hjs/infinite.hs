@@ -2,7 +2,7 @@ module Infinite where
 
 import Data.Tree  
 
-import Language.UHC.JScript.Assorted (alert)
+import            Language.UHC.JS.Assorted (alert)
 import            Language.Prolog.NanoProlog.NanoProlog
 import            Language.Prolog.NanoProlog.ParserUUTC
   
