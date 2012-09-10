@@ -43,12 +43,11 @@ import            Snap.Snaplet.Hdbc
 import            Snap.Snaplet.Session
 import            Snap.Snaplet.Session.Backends.CookieSession
 import            Snap.Util.FileServe
-import            Text.Blaze
 import qualified  Text.Blaze.Html5 as H
-import            Text.Blaze.Renderer.Utf8 (renderHtml)
+import            Text.Blaze.Html.Renderer.Utf8 (renderHtml)
 import            Text.Digestive
-import            Text.Digestive.Blaze.Html5
-import            Text.Digestive.Forms.Snap
+import qualified  Text.Digestive.Form as DF
+import            Text.Digestive.Snap hiding (method)
 import qualified  Text.Email.Validate as E
 
 
@@ -121,16 +120,16 @@ loginH :: AppHandler ()
 loginH = withSession sessLens $ do
   loggedIn <- with authLens isLoggedIn
   when loggedIn $ redirect "/"
-  res <- eitherSnapForm loginForm "login-form"
+  res <- runForm "login-form" loginForm
   case res of
-    Left form' -> do
+    (view, Nothing) -> do
       didFail <- with sessLens $ do
         failed <- getFromSession "login-failed"
         deleteFromSession "login-failed"
         commitSession
         return failed
-      blaze $ template $ loginHTML (isJust didFail) form'
-    Right (FormUser e p r) -> do
+      blaze $ template $ loginHTML (isJust didFail) view
+    (_, Just (FormUser e p r)) -> do
       loginRes <- with authLens $
                     loginByUsername  (DT.encodeUtf8 e)
                                      (ClearText $ DT.encodeUtf8 p) r
@@ -146,16 +145,16 @@ signupH :: AppHandler ()
 signupH = do
   loggedIn <- with authLens isLoggedIn
   when loggedIn $ redirect "/"
-  res <- eitherSnapForm registrationForm "registration-form"
+  res <- runForm "registration-form" registrationForm
   case res of
-    Left form' -> do
+    (view, Nothing) -> do
       exists <- with sessLens $ do
         failed <- getFromSession "username-exists"
         deleteFromSession "username-exists"
         commitSession
         return failed
-      blaze $ template (signupHTML (isJust exists) form')
-    Right (FormUser e p _) -> do
+      blaze $ template (signupHTML (isJust exists) view)
+    (_, Just (FormUser e p _)) -> do
       _ <- with authLens (createUser e (DT.encodeUtf8 p)) `catch` hndlExcptn
       redirect "/"
   where  hndlExcptn :: SomeException -> AppHandler AuthUser
@@ -284,7 +283,7 @@ substH = restrict forbiddenH $ do
 -------------------------------------------------------------------------------
 -- View rendering
 
-blaze :: Reader AuthState Html -> AppHandler ()
+blaze :: Reader AuthState H.Html -> AppHandler ()
 blaze htmlRdr = do
   modifyResponse $ addHeader "Content-Type" "text/html; charset=UTF-8"
   li   <- with authLens isLoggedIn
@@ -305,63 +304,80 @@ data FormUser = FormUser
   ,  remember  :: Bool }
   deriving Show
 
-isEmail :: Monad m => Validator m Html Text
+{-isEmail :: Monad m => Validator m Html Text-}
+isEmail :: Monad m => Form H.Html m Text -> Form H.Html m Text
 isEmail = check "Invalid email address" (E.isValid . DT.unpack)
 
-longPwd :: Monad m => Validator m Html Text
+{-longPwd :: Monad m => Validator m Html Text-}
+longPwd :: Monad m => Form H.Html m Text -> Form H.Html m Text
 longPwd  =  check "Password needs to be at least six characters long"
          $  \xs -> DT.length xs >= 6
 
-isNonEmpty :: Monad m => Validator m Html Text
+{-isNonEmpty :: Monad m => Validator m Html Text-}
+isNonEmpty :: Monad m => Form H.Html m Text -> Form H.Html m Text
 isNonEmpty = check "Field must not be empty" $ not . DT.null
 
-identical :: Validator AppHandler Html (Text, Text)
+{-identical :: Validator AppHandler Html (Text, Text)-}
+identical :: Monad m => Form H.Html m (Text, Text) -> Form H.Html m (Text, Text)
 identical = check "Field values must be identical" (uncurry (==))
 
-loginForm :: Form AppHandler SnapInput Html BlazeFormHtml FormUser
-loginForm = (\e p r _ -> FormUser e p r)
-  <$>  mapViewHtml H.div (
-       label  "Email address: "
-       ++>    inputText Nothing `validate` isEmail
-       <++    errors)
-  <*>  mapViewHtml H.div (
-       label  "Password: "
-       ++>    inputPassword False `validate` longPwd
-       <++    errors)
-  <*>  mapViewHtml H.div (
-       label  "Remember me?"
-       ++>    inputCheckBox True)
-  <*>  mapViewHtml H.div (
-       submit "Login")
+{-loginForm :: Form AppHandler SnapInput Html BlazeFormHtml FormUser-}
+{-loginForm = (\e p r _ -> FormUser e p r)-}
+  {-<$>  mapViewHtml H.div (-}
+       {-label  "Email address: "-}
+       {-++>    inputText Nothing `validate` isEmail-}
+       {-<++    errors)-}
+  {-<*>  mapViewHtml H.div (-}
+       {-label  "Password: "-}
+       {-++>    inputPassword False `validate` longPwd-}
+       {-<++    errors)-}
+  {-<*>  mapViewHtml H.div (-}
+       {-label  "Remember me?"-}
+       {-++>    inputCheckBox True)-}
+  {-<*>  mapViewHtml H.div (-}
+       {-submit "Login")-}
 
-registrationForm :: Form AppHandler SnapInput Html BlazeFormHtml FormUser
-registrationForm = (\ep pp _ -> FormUser (fst ep) (fst pp) False)
+loginForm :: Form H.Html AppHandler FormUser
+loginForm = FormUser
+  <$>  "email"     DF..: isEmail (text Nothing)
+  <*>  "password"  DF..: longPwd (text Nothing)
+  <*>  "remember"  DF..: bool Nothing
+
+{-registrationForm :: Form AppHandler SnapInput Html BlazeFormHtml FormUser-}
+{-registrationForm = (\ep pp _ -> FormUser (fst ep) (fst pp) False)-}
+  {-<$>  ((,)-}
+         {-<$>  mapViewHtml H.div (-}
+              {-label  "Email address: "-}
+              {-++>    inputText Nothing `validate` isEmail-}
+              {-<++    errors)-}
+         {-<*>  mapViewHtml H.div (-}
+              {-label  "Email address (confirmation): "-}
+              {-++>    inputText Nothing `validate` isEmail-}
+              {-<++    errors))-}
+       {-`validate`  identical-}
+       {-<++         errors-}
+  {-<*>  ((,)-}
+         {-<$>  mapViewHtml H.div (-}
+              {-label  "Password: "-}
+              {-++>    inputPassword False `validate` longPwd-}
+              {-<++    errors)-}
+         {-<*>  mapViewHtml H.div (-}
+              {-label  "Password (confirmation): "-}
+              {-++>    inputPassword False `validate` longPwd-}
+              {-<++    errors))-}
+       {-`validate`  identical-}
+       {-<++         errors-}
+  {-<*>  mapViewHtml H.div (-}
+       {-submit "Register")-}
+
+registrationForm :: Form H.Html AppHandler FormUser
+registrationForm = (\ep pp -> FormUser (fst ep) (fst pp) False)
   <$>  ((,)
-         <$>  mapViewHtml H.div (
-              label  "Email address: "
-              ++>    inputText Nothing `validate` isEmail
-              <++    errors)
-         <*>  mapViewHtml H.div (
-              label  "Email address (confirmation): "
-              ++>    inputText Nothing `validate` isEmail
-              <++    errors))
-       `validate`  identical
-       <++         errors
-  <*>  ((,)
-         <$>  mapViewHtml H.div (
-              label  "Password: "
-              ++>    inputPassword False `validate` longPwd
-              <++    errors)
-         <*>  mapViewHtml H.div (
-              label  "Password (confirmation): "
-              ++>    inputPassword False `validate` longPwd
-              <++    errors))
-       `validate`  identical
-       <++         errors
-  <*>  mapViewHtml H.div (
-       submit "Register")
-
-
+    <$> "email1" DF..: isEmail (text Nothing)
+    <*> "email2" DF..: isEmail (text Nothing))
+  <*> ((,)
+    <$> "password1" DF..: longPwd (text Nothing)
+    <*> "password2" DF..: longPwd (text Nothing))
 
 -------------------------------------------------------------------------------
 -- Database interaction

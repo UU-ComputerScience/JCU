@@ -25,7 +25,7 @@ Extra-Source-Files:  README.md, FUTURE-WORK.md
 
 Source-repository head
   Type:       git
-  Location:   https://github.com/norm2782/JCU.git
+  Location:   https://github.com/UU-ComputerScience/JCU
 
 Flag development
   Description: Whether to build the server in development (interpreted) mode
@@ -39,14 +39,15 @@ Executable jcu
     aeson >= 0.6,
     attoparsec >= 0.9,
     base >= 4 && < 5,
-    blaze-html >= 0.4.1,
+    blaze-html >= 0.5,
+    blaze-markup >= 0.5,
     bytestring >= 0.9,
     containers >= 0.4,
     data-lens >= 2,
     data-lens-template >= 2,
-    digestive-functors >= 0.2 && < 0.3,
-    digestive-functors-blaze >= 0.2.1 && < 0.3,
-    digestive-functors-snap >= 0.1.3.1 && < 0.3,
+    digestive-functors == 0.5.*,
+    digestive-functors-blaze == 0.5.*,
+    digestive-functors-snap == 0.5.*,
     email-validate >= 0.2.6,
     HDBC >= 2.2,
     HDBC-postgresql >= 2.1,
@@ -55,10 +56,11 @@ Executable jcu
     mtl >= 2.0,
     NanoProlog >= 0.3,
     resource-pool-catchio >= 0.2 && < 0.3,
-    snap >= 0.8,
-    snap-core >= 0.8,
-    snap-server >= 0.8,
-    snaplet-hdbc >= 0.8,
+    snap == 0.9.*,
+    snap-core == 0.9.*,
+    snap-loader-static == 0.9.*,
+    snap-server == 0.9.*,
+    snaplet-hdbc == 0.9.*,
     text >= 0.11,
     time >= 1.1 && < 1.5,
     transformers >= 0.2,

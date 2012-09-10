@@ -5,11 +5,11 @@ module JCU.Templates where
 import            Control.Monad
 import            Control.Monad.Reader
 import            Data.Text (Text)
-import            Text.Blaze.Html5 (Html, AttributeValue, (!))
+import            Text.Blaze.Html5 (Html, (!))
 import qualified  Text.Blaze.Html5 as H
 import qualified  Text.Blaze.Html5.Attributes as A
-import            Text.Blaze.Internal (HtmlM(..))
 import            Text.Digestive.Blaze.Html5
+import qualified  Text.Digestive.View as V
 
 
 -------------------------------------------------------------------------------
@@ -80,20 +80,52 @@ header = do
 
 
 -- Replaces the signup.tpl file
-signupHTML :: Bool -> FormHtml (HtmlM a) -> Reader AuthState Html
-signupHTML exists frm = return $
+signupHTML :: Monad m => Bool -> V.View Html -> m Html
+signupHTML exists view = return $
   H.div ! A.id "home-view" $ do
     H.h1 $ H.toHtml ("Please sign up" :: Text)
     when exists $ H.h2 "Username is already taken"
-    showForm "/signup" frm
+    form view "/signup" $ do
+      registrationFormView view
+      H.div $ inputSubmit "Sign up!"
+
+registrationFormView :: V.View v -> Html
+registrationFormView view = do
+  H.div $ do
+    label "email1" view "Email address: "
+    inputText "email1" view
+  H.div $ do
+    label "email2" view "Email address (confirmation): "
+    inputText "email2" view
+  H.div $ do
+    label "password1" view "Password: "
+    inputPassword "password1" view
+  H.div $ do
+    label "password2" view "Password (confirmation): "
+    inputPassword "password2" view
 
 -- Replaces the login.tpl file
-loginHTML :: Bool -> FormHtml (HtmlM a) -> Reader AuthState Html
-loginHTML loginFailed frm = return $
+{-loginHTML :: Bool -> FormHtml (HtmlM a) -> Reader AuthState Html-}
+loginHTML :: Monad m => Bool -> V.View Html -> m Html
+loginHTML loginFailed view = return $
   H.div ! A.id "home-view" $ do
     H.h1 $ H.toHtml ("Please log in" :: Text)
     when loginFailed $ H.h2 "Incorrect login credentials"
-    showForm "/login" frm
+    form view "/login" $ do
+      loginFormView view
+      H.div $ inputSubmit "Log in"
+
+loginFormView :: V.View Html -> Html
+loginFormView view = do
+  H.div $ do
+    label "email" view "Email address: "
+    inputText "email" view
+  H.div $ do
+    label "password" view "Password: "
+    inputPassword "password" view
+  H.div $ do
+    label "remember" view "Remember me?"
+    inputCheckbox "remember" view
 
 mainHTML :: Html -> Reader AuthState Html
 mainHTML left = return $ do
@@ -117,14 +149,6 @@ interpreterHTML = mainHTML $ do
   H.input ! A.type_ "button" ! A.id "submitquery" ! A.value "Submit Query"
   H.div ! A.id "output" $
     H.toHtml ("Please enter a query" :: Text)
-
-showForm :: AttributeValue -> FormHtml (HtmlM a) -> Html
-showForm act frm =
-  let  (formHtml', enctype) = renderFormHtml frm
-  in   H.form  ! A.enctype (H.toValue $ show enctype) ! A.method "post"
-               ! A.action act $ do
-         _ <- formHtml'
-         return ()
 
 index :: Reader AuthState Html
 index = mainHTML $ do
