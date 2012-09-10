@@ -7,7 +7,7 @@ import Language.UHC.JScript.Types
 import Data.List (find)
 
 import ParseLib.Abstract
-import Language.Prolog.NanoProlog.NanoProlog as NP
+import qualified Language.Prolog.NanoProlog.NanoProlog as NP
 import Language.Prolog.NanoProlog.ParserUUTC
 
 
@@ -50,7 +50,7 @@ foreign import js "%1.rule"
 hasValidTermSyntax :: String -> Bool
 hasValidTermSyntax term = maybe False (const True) (tryParseTerm term)
 
-tryParseTerm :: String -> Maybe Term
+tryParseTerm :: String -> Maybe NP.Term
 tryParseTerm = run pTerm
 
 hasValidRuleSyntax :: String -> Bool

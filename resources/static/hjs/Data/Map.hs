@@ -1,4 +1,6 @@
 module Data.Map where
+
+import Prelude hiding(lookup)
   
 type Map k v = [(k,v)]
 
