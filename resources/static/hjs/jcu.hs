@@ -29,7 +29,7 @@ import Language.UHC.JScript.JQuery.Droppable
 import Language.Prolog.NanoProlog.NanoProlog
 import Language.Prolog.NanoProlog.ParserUUTC
 
-import Language.UHC.JScript.JQuery.Deferred 
+import Language.UHC.JScript.JQuery.Deferred
 
 {-import Language.UHC.JScript.WebWorker -}
 
@@ -192,7 +192,7 @@ addRuleTree rlsref = do
   setHTML ruleTreeDiv "" -- TODO: This is ugly....
   append ruleTreeDiv ruleTreeUL
 
--- | Builds up the rule tree  
+-- | Builds up the rule tree
 buildRuleUl :: RulesRef -> Proof -> PCheck -> IO JQuery
 buildRuleUl rlsref node status =
   do topUL <- jQuery "<ul id=\"proof-tree-view\" class=\"tree\"/>"
@@ -215,7 +215,7 @@ buildRuleUl rlsref node status =
       jsRuleText <- (getAttr "draggable" ui >>= getAttr "context" >>= getAttr "innerText") :: IO JSString
       let ruleText = fromJS jsRuleText :: String
       if null elemVal
-        then  showError "There needs to be a term in the text field!" 
+        then  showError "There needs to be a term in the text field!"
         else  case tryParseRule ruleText of
                 Nothing  -> showError "This should not happen. Dropping an invalid rule here."
                 Just t   -> case dropUnify wp lvl t of
@@ -256,10 +256,9 @@ replaceRuleTree rlsref p = do
   CM.when (complete status) $
     showInfo "Congratulations! You have successfully completed your proof!"
   where  complete :: PCheck -> Bool
-         complete (Node Correct [])  = True
-         complete (Node Correct xs)  = all complete xs
-         complete _                  = False
-
+         complete (T.Node Correct [])  = True
+         complete (T.Node Correct xs)  = all complete xs
+         complete _                    = False
 
 addRules :: RulesRef -> AjaxCallback (JSArray JSRule)
 addRules rlsref obj str obj2 = do
@@ -294,8 +293,8 @@ addRuleEvent rlsref event = do
                           ajaxQ POST "/rules/stored" str (onSuccess (fromJS rule)) onFail
   return True
   where  onSuccess :: String -> AjaxCallback Int
-         onSuccess r id _ _ = do ul   <- jQuery "ul#rules-list-view" 
-                                 item <- createRuleLi r id 
+         onSuccess r id _ _ = do ul   <- jQuery "ul#rules-list-view"
+                                 item <- createRuleLi r id
                                  append ul item
          onFail _ _ _ = showError "faal"
 
