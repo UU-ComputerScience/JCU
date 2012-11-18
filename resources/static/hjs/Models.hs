@@ -61,3 +61,8 @@ tryParseRule = run pRule
 
 run :: Parser a b -> [a] -> Maybe b
 run p as = fmap fst . find (null . snd) $ startParse p as
+
+instance Read NP.Rule where
+  readsPrec _ str = case find (null . snd) $ startParse pRule str of
+                      (Just r) -> [r]
+                      Nothing  -> []

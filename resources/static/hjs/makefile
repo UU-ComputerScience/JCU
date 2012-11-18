@@ -3,7 +3,7 @@ COMPILER = ${UHC} --import-path=${UHC_JSCRIPT} --import-path=${UHC_NANOPROLOG} -
 
 all: jcu.js
 
-jcu.js: jcu.hs Array.hs lib.hs Models.hs Prolog.hs Templates.hs
+jcu.js: jcu.hs Array.hs lib.hs Models.hs Prolog.hs Templates.hs Data/*.hs
 	${COMPILER} jcu.hs
 
 webworker: 

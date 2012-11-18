@@ -21,7 +21,57 @@
         <span id="logout"><a href="/logout">Logout</a></span>
       </div>
       <div id="bd">
-        <div>JCU: Wiskunde D. The application is either loading, or something went wrong.</div>
+        <div id="home-view">
+          <div class="yui3-g">
+            <div class="yui3-u-1-2" id="mainLeft">
+              <div class="content">
+                <h2>Proof Tree</h2>
+                <div id="proof-tree-div" class="noClue">
+                  <div>JCU: Wiskunde D. The application is either loading, or something went wrong.</div>
+                </div> 
+                <div id="subst">
+                  Substitute
+                  <input type="text" id="txtSubstSub" style="width:50px" />
+                  for
+                  <input type="text" id="txtSubstFor" style="width:50px" />
+                  <input type="button" id="btnSubst" value="Substitute">
+                  e.g. substitue bea for X0
+                </div>
+                <input type="hidden" id="storeDoChecking" value="False"/>
+                <input type="button" id="btnCheck" value="Check Proof"/>
+                <input type="button" id="btnReset" value="Reset Tree"/>
+                
+                <h3>Color coding help</h3>
+                <ul id="color-coding-list"> <li><div class="box
+                redField"></div> Incorrect rule application</li> <li><div
+                class="box yellowField"></div> Incomplete proof</li> <li><div
+                class="box greenField"></div> Correct rule</li> <li><div
+                class="box blueField"></div> Syntax error</li> </ul>
+
+                <h3>Example data</h3>
+                <p class="lhsText"> Example data containing the Dutch royal
+                family, the list structure and lookup, and the natural numbers
+                (as discussed in the JCU lecture notes) can be loaded by
+                clicking the button below. Beware that this will replace all
+                your existing rules! </p>
+                <input type="button" id="btnLoadExampleData" value="Load Example Data">
+              </div>
+            </div>
+            <div class="yui3-u-1-2" id="mainRight">
+              <div class="content">
+                <h2>Stored Rules</h2>
+                <p>Drag a rule form the list below to a field containing a term in the tree on the left.</p>
+                <div id="rules-list-div"></div>
+                <div id="divListAdd">
+                  <input type="text" id="txtAddRule" />
+                  <input type="button" id="btnAddRule" value="Add" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        
       </div>
       <div id="ft">
         <img src="assets/img/uulogo.png" id="uulogo" alt="UU Logo">

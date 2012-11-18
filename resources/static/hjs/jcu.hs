@@ -5,6 +5,7 @@ import qualified Control.Monad as CM (liftM, foldM, when)
 import Data.Array (elems)
 import Data.IORef
 import Data.List as DL
+import Data.LocalStorage
 import Data.Map   (fromList)
 import Data.Maybe (fromJust)
 import Data.Tree as T
@@ -63,14 +64,14 @@ showInfo  = alert
 
 -- | Wrapper function for making Ajax Requests with all types set to JSON as it
 --   is the only type of request we will be making.
-ajaxQ  ::  (JS r, JS v) => AjaxRequestType -> String -> v -> AjaxCallback r
-       ->  AjaxCallback r -> IO ()
-ajaxQ rt url = AQ.ajaxQ "jcu_app"
-  AjaxOptions  {  ao_url         = url
-               ,  ao_requestType = rt
-               ,  ao_contentType = "application/json"
-               ,  ao_dataType    = "json"
-               }
+-- ajaxQ  ::  (JS r, JS v) => AjaxRequestType -> String -> v -> AjaxCallback r
+--        ->  AjaxCallback r -> IO ()
+-- ajaxQ rt url = AQ.ajaxQ "jcu_app"
+--   AjaxOptions  {  ao_url         = url
+--                ,  ao_requestType = rt
+--                ,  ao_contentType = "application/json"
+--                ,  ao_dataType    = "json"
+--                }
 
 -- | Update an existing input field that is used to store `global' variables
 --   Not entirely best practice. This should perhaps be modelled in a State
@@ -82,8 +83,27 @@ updateStore sel updateF = do
   setValString store (show $ updateF val)
 
 -- | Read the contents of the store
+-- TODO: Update this to use HTML5 local storage
 readStore :: (Read a) => Selector -> IO a
 readStore sel = fmap read (jQuery storeDoCheckId >>= valString)
+
+rulesStoreKey = "rules"
+
+-- | Reads the stored rules from the local datastore (HTML5)
+readRulesFromStore :: IO [NP.Rule]
+readRulesFromStore = do
+  rules <- getLocalStorage rulesStoreKey :: IO [NP.Rule]
+  return rules
+  -- ajaxQ GET "/rules/stored" obj (addRules rlsref) noop
+
+  
+-- | Adds the given Rule to the local datastore
+addRuleToStore :: NP.Rule -> IO Int
+addRuleToStore rule = return 0
+
+-- | Deletes a given rule from the store (using the ID)
+deleteRuleFromStore :: Int -> IO ()
+deleteRuleFromStore id = return ()
 
 ----
 --   Application
@@ -91,43 +111,9 @@ readStore sel = fmap read (jQuery storeDoCheckId >>= valString)
 main :: IO ()
 main = do
   path <- pathName
-  init <- wrapIO $ if "interpreter" `isInfixOf` path
-                     then  initInterpreter
-                     else  initProofTree
+  init <- wrapIO initProofTree
   onDocumentReady init
 
-initInterpreter :: IO ()
-initInterpreter = do
-  obj <- mkAnonObj
-  rlsref <- newIORef []
-  ajaxQ GET "/rules/stored" obj (addRules rlsref) noop
-  registerEvents  [  ("#submitquery", Click   , submitQuery rlsref)
-                  ,  ("#txtAddRule" , KeyPress, addRuleKeypress rlsref)
-                  ,  ("#txtAddRule" , Blur    , checkTermSyntax)
-                  ,  ("#btnAddRule" , Click   , addRuleEvent rlsref)
-                  ,  ("#query"      , KeyPress, queryKeyPress rlsref) ]
-  where  submitQuery rlsref _ = do
-           qryFld <- jQuery "#query"
-           qry <- valString qryFld
-           case tryParseTerm qry of
-             Nothing  -> markInvalidTerm qryFld
-             Just _   -> do
-               obj <- mkAnonObj
-               ajaxQ GET ("/interpreter/" ++ encodeURIComponent qry) obj showProof noop
-           return True
-         showProof result _ _ = do
-           resFld <- jQuery "#output"
-           _setHTML resFld result
-         addRuleKeypress rlsref obj = do
-           (which :: Int) <- getAttr "which" obj
-           CM.when ((which :: Int) == 13) $
-             addRuleEvent rlsref undefined >> return ()
-           return True
-         queryKeyPress rlsref obj = do
-           (which :: Int) <- getAttr "which" obj
-           CM.when ((which :: Int) == 13) $
-             submitQuery rlsref undefined >> return ()
-           return True
 
 checkTermSyntax :: EventHandler
 checkTermSyntax _ = do
@@ -150,15 +136,22 @@ showInterpRes res str obj = do
 initProofTree :: IO ()
 initProofTree = do -- Rendering
   l <- jQuery "#mainLeft"
+  rules <- readRulesFromStore
+  rlsref <- newIORef rules
+
   -- Proof tree
-  rlsref <- newIORef []
   addRuleTree rlsref
   -- Rules list
-  obj <- mkAnonObj
-  ajaxQ GET "/rules/stored" obj (addRules rlsref) noop
-  registerEvents  [  ("#btnCheck"  , Click   , toggleClue rlsref emptyProof)
-                  ,  ("#btnAddRule", Click   , addRuleEvent rlsref)
-                  ,  ("#btnReset"  , Click   , resetTree rlsref)
+  -- addRules rlsref
+  let defRules' = (read "[pa(alex, ama).,pa(alex, ale).,pa(alex, ari).,pa(claus, alex).,pa(claus, const).,pa(claus, friso).,ma(max, ama).,ma(max, ale).,ma(max, ari).,ma(bea, alex).,ma(bea, const).,ma(bea, friso).,ma(juul, bea).,ma(mien, juul).,ouder(X, Y):-pa(X, Y).,ouder(X, Y):-ma(X, Y).,kind(X, Y):-ouder(Y, X).,voor(X, Y):-ouder(X, Y).,voor(X, Y):-ouder(Z, Y), voor(X, Z).,oeps(X):-oeps(Y).,plus(zero, X, X).,plus(succ(X), Y, succ(Z)):-plus(X, Y, Z).,length(nil, zero).,length(X:XS, succ(Y)):-length(XS, Y).,oplossing(BORD):-rijen(BORD, XSS), juist(XSS), kolommen(BORD, YSS), juist(YSS), vierkanten(BORD, ZSS), juist(ZSS).,juist(nil).,juist(XS:XSS):-verschillend(XS), juist(XSS).,rijen(XSS, XSS).,kolommen(nil, nil:nil:nil:nil:nil).,kolommen(XS:XSS):-voegtoe(XS, YSS, ZSS), kolommen(XSS, YSS).,voegtoe(nil, nil, nil).,voegtoe(X:XS, YS:YSS, (X:YS):ZSS):-voegtoe(XS, YSS, ZSS).]") :: [NP.Rule]
+  alert (show defRules')
+
+
+  
+  registerEvents  [  ("#btnCheck"  ,         Click   , toggleClue rlsref emptyProof)
+                  ,  ("#btnAddRule",         Click   , addRuleEvent rlsref)
+                  ,  ("#btnReset"  ,         Click   , resetTree rlsref)
+                  ,  ("#btnLoadExampleData", Click   , loadExampleData)
                   ,  ("#txtAddRule", KeyPress, clr rlsref)
                   ,  ("#txtAddRule", Blur    , checkTermSyntax) ]
   where  resetTree rlsref _ = do -- Do not forget to add the class that hides the colours
@@ -260,19 +253,18 @@ replaceRuleTree rlsref p = do
          complete (T.Node Prolog.Correct xs)  = all complete xs
          complete _                    = False
 
-addRules :: RulesRef -> AjaxCallback (JSArray JSRule)
-addRules rlsref obj str obj2 = do
-  -- slet rules  = (Data.List.map fromJS . elems . jsArrayToArray) obj
+addRules :: RulesRef -> IO ()
+addRules rlsref = do
   rules_list_div <- jQuery "#rules-list-div"
   rules_list_ul  <- jQuery "<ul id=\"rules-list-view\"/>"
   append rules_list_div rules_list_ul
-  f <- mkEachIterator (\idx e -> do
-    Rule id _ rule' <- fromJS (e :: JSRule)
-    modifyIORef rlsref (addRuleRef rule')
-    listItem <- createRuleLi (fromJS rule') id
-    append rules_list_ul listItem
-    return ())
-  each' obj f
+  
+  rules <- readIORef rlsref
+  let f (idx, rule) = do listItem <- createRuleLi (show rule) idx
+                         append rules_list_ul listItem
+                         return ()
+  mapM f (zip [0..] rules)
+  
   onStart <- mkJUIEventHandler (\x y -> do focus <- jQuery ":focus"
                                            doBlur focus
                                            return False)
@@ -287,16 +279,16 @@ addRuleEvent :: RulesRef -> EventHandler
 addRuleEvent rlsref event = do
   rule  <- jQuery "#txtAddRule" >>= valJSString
   case tryParseRule (fromJS rule) of
-    Nothing  ->  showError "Invalid rule, not adding to rule list."
+    Nothing  ->  showError $ "Invalid rule, not adding to rule list." ++ (fromJS rule)
     Just r   ->  let  str = foldl1 JSString.concat [toJS "{\"rule\":\"", rule, toJS "\"}"]
                  in   do  modifyIORef rlsref (r :)
-                          ajaxQ POST "/rules/stored" str (onSuccess (fromJS rule)) onFail
+                          _ <- addRuleToStore r
+                          return ()
   return True
   where  onSuccess :: String -> AjaxCallback Int
          onSuccess r id _ _ = do ul   <- jQuery "ul#rules-list-view"
                                  item <- createRuleLi r id
                                  append ul item
-         onFail _ _ _ = showError "faal"
 
 createRuleLi :: String -> Int -> IO JQuery
 createRuleLi rule id = do
@@ -315,29 +307,6 @@ checkProof rlsref p = do
   return $ if doCheck
              then Prolog.checkProof rules' p
              else Prolog.dummyProof p
-
--- | This is how I think checkProof should look when using workers.
--- checkProof :: Proof -> (PCheck -> IO ()) -> IO ()
--- checkProof p cps = do rules  <- jQuery ".rule-list-item" >>= jQueryToArray
---                       rules' <- (mapM f . elems . jsArrayToArray) rules
---
---                       let messagecps = \ obj -> do res <- getAttr "data" obj :: IO PCheck
---                                                    cps res
---
---                       proofWorker <- newWorker "hjs/worker.js"
---                       setOnMessage proofWorker messagecps
---                       let l = Data.List.length $ show (p, rules')
---                       msg <- mkAnonObj
---                       p' <- mkObj p
---                       rules'' <- mkObj rules'
---                       setAttr "proof" p'      msg
---                       setAttr "rules" rules'  msg
---                       postMessage proofWorker msg
---  where f x =    getAttr "innerText" x
---            >>=  return . fromJust . tryParseRule . (fromJS :: JSString -> String)
-
--- foreign import js "_deepe_"
---   deepE :: a -> IO a
 
 doSubst :: RulesRef -> Prolog.Proof -> EventHandler
 doSubst rlsref p _ = do
@@ -359,7 +328,11 @@ markClear jq = clearClasses jq >> addClass jq "whiteField"
 
 deleteRule :: JQuery -> Int -> EventHandler
 deleteRule jq i _ = do
-  ajaxQ DELETE ("/rules/stored/"++show i) i removeLi noop
+  deleteRuleFromStore i
+  remove jq
   return False
-  where  removeLi :: AjaxCallback ()
-         removeLi _ _ _ = remove jq
+
+loadExampleData :: EventHandler
+loadExampleData _ = do 
+  setLocalStorage "rules" Prolog.exampleData
+  return False
