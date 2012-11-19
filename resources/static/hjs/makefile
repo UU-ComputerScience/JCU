@@ -15,6 +15,7 @@ infinite:
 
 testcase: testcases/*.hs
 	cd testcases && ${COMPILER} alert.hs
+	${COMPILER} ReadTest.hs
 	
 test:
 	echo $(GHC_OPTS)

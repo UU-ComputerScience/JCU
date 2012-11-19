@@ -22,8 +22,6 @@ import Language.UHC.JS.ECMA.String as JSString
 
 import Language.UHC.JS.Assorted (alert , _alert)
 
-import Language.UHC.JS.JQuery.Ajax as Ajax
-import qualified Language.UHC.JS.JQuery.AjaxQueue as AQ
 import Language.UHC.JS.JQuery.Draggable
 import Language.UHC.JS.JQuery.Droppable
 
@@ -62,17 +60,6 @@ storeDoCheckId = "#storeDoChecking"
 showError = alert
 showInfo  = alert
 
--- | Wrapper function for making Ajax Requests with all types set to JSON as it
---   is the only type of request we will be making.
--- ajaxQ  ::  (JS r, JS v) => AjaxRequestType -> String -> v -> AjaxCallback r
---        ->  AjaxCallback r -> IO ()
--- ajaxQ rt url = AQ.ajaxQ "jcu_app"
---   AjaxOptions  {  ao_url         = url
---                ,  ao_requestType = rt
---                ,  ao_contentType = "application/json"
---                ,  ao_dataType    = "json"
---                }
-
 -- | Update an existing input field that is used to store `global' variables
 --   Not entirely best practice. This should perhaps be modelled in a State
 --   monad.
@@ -96,14 +83,30 @@ readRulesFromStore = do
   return rules
   -- ajaxQ GET "/rules/stored" obj (addRules rlsref) noop
 
+-- | Write the rules directly to storage
+writeRulesInStore :: [NP.Rule] -> IO ()
+writeRulesInStore = setLocalStorage "rules"
+
+-- | Modify the rules in the storage
+modifyRulesInStore :: ([NP.Rule] -> [NP.Rule]) -> IO ()
+modifyRulesInStore f = fmap f readRulesFromStore >>= writeRulesInStore
   
 -- | Adds the given Rule to the local datastore
-addRuleToStore :: NP.Rule -> IO Int
-addRuleToStore rule = return 0
+addRuleToStore :: NP.Rule -> IO (Maybe Int)
+addRuleToStore rule = do
+  rules <- readRulesFromStore
+  case elemIndex rule rules of
+    Just n  -> return Nothing
+    Nothing -> do writeRulesInStore (rules ++ [rule])
+                  return . Just $ DL.length rules + 1
 
 -- | Deletes a given rule from the store (using the ID)
 deleteRuleFromStore :: Int -> IO ()
-deleteRuleFromStore id = return ()
+deleteRuleFromStore id = modifyRulesInStore dropX
+  where
+  dropX rules = let (ys,zs) = splitAt id rules
+                in   ys ++ (tail zs)
+  
 
 ----
 --   Application
@@ -127,12 +130,6 @@ checkTermSyntax _ = do
 noevent :: EventHandler
 noevent _ = return False
 
-showInterpRes :: AjaxCallback JSString
-showInterpRes res str obj = do
-  op <- jQuery "#output"
-  _setHTML op res
-  return ()
-
 initProofTree :: IO ()
 initProofTree = do -- Rendering
   l <- jQuery "#mainLeft"
@@ -142,16 +139,12 @@ initProofTree = do -- Rendering
   -- Proof tree
   addRuleTree rlsref
   -- Rules list
-  -- addRules rlsref
-  let defRules' = (read "[pa(alex, ama).,pa(alex, ale).,pa(alex, ari).,pa(claus, alex).,pa(claus, const).,pa(claus, friso).,ma(max, ama).,ma(max, ale).,ma(max, ari).,ma(bea, alex).,ma(bea, const).,ma(bea, friso).,ma(juul, bea).,ma(mien, juul).,ouder(X, Y):-pa(X, Y).,ouder(X, Y):-ma(X, Y).,kind(X, Y):-ouder(Y, X).,voor(X, Y):-ouder(X, Y).,voor(X, Y):-ouder(Z, Y), voor(X, Z).,oeps(X):-oeps(Y).,plus(zero, X, X).,plus(succ(X), Y, succ(Z)):-plus(X, Y, Z).,length(nil, zero).,length(X:XS, succ(Y)):-length(XS, Y).,oplossing(BORD):-rijen(BORD, XSS), juist(XSS), kolommen(BORD, YSS), juist(YSS), vierkanten(BORD, ZSS), juist(ZSS).,juist(nil).,juist(XS:XSS):-verschillend(XS), juist(XSS).,rijen(XSS, XSS).,kolommen(nil, nil:nil:nil:nil:nil).,kolommen(XS:XSS):-voegtoe(XS, YSS, ZSS), kolommen(XSS, YSS).,voegtoe(nil, nil, nil).,voegtoe(X:XS, YS:YSS, (X:YS):ZSS):-voegtoe(XS, YSS, ZSS).]") :: [NP.Rule]
-  alert (show defRules')
-
-
+  addRules rlsref
   
   registerEvents  [  ("#btnCheck"  ,         Click   , toggleClue rlsref emptyProof)
                   ,  ("#btnAddRule",         Click   , addRuleEvent rlsref)
                   ,  ("#btnReset"  ,         Click   , resetTree rlsref)
-                  ,  ("#btnLoadExampleData", Click   , loadExampleData)
+                  ,  ("#btnLoadExampleData", Click   , loadExampleData rlsref)
                   ,  ("#txtAddRule", KeyPress, clr rlsref)
                   ,  ("#txtAddRule", Blur    , checkTermSyntax) ]
   where  resetTree rlsref _ = do -- Do not forget to add the class that hides the colours
@@ -258,9 +251,14 @@ addRules rlsref = do
   rules_list_div <- jQuery "#rules-list-div"
   rules_list_ul  <- jQuery "<ul id=\"rules-list-view\"/>"
   append rules_list_div rules_list_ul
+  addRulesList rlsref
   
+addRulesList :: RulesRef -> IO ()
+addRulesList rlsref = do
+  rules_list_ul <- jQuery "#rules-list-view"
+  empty rules_list_ul
   rules <- readIORef rlsref
-  let f (idx, rule) = do listItem <- createRuleLi (show rule) idx
+  let f (idx, rule) = do listItem <- createRuleLi rlsref (show rule) idx
                          append rules_list_ul listItem
                          return ()
   mapM f (zip [0..] rules)
@@ -280,21 +278,19 @@ addRuleEvent rlsref event = do
   rule  <- jQuery "#txtAddRule" >>= valJSString
   case tryParseRule (fromJS rule) of
     Nothing  ->  showError $ "Invalid rule, not adding to rule list." ++ (fromJS rule)
-    Just r   ->  let  str = foldl1 JSString.concat [toJS "{\"rule\":\"", rule, toJS "\"}"]
-                 in   do  modifyIORef rlsref (r :)
-                          _ <- addRuleToStore r
-                          return ()
+    Just r   ->  do  success <- addRuleToStore r
+                     case success of
+                       Nothing -> showError $ "Rule already exists"
+                       _       -> do modifyIORef rlsref (++ [r])
+                                     addRulesList rlsref
+                                     jQuery "#txtAddRule" >>= flip setValString ""
   return True
-  where  onSuccess :: String -> AjaxCallback Int
-         onSuccess r id _ _ = do ul   <- jQuery "ul#rules-list-view"
-                                 item <- createRuleLi r id
-                                 append ul item
-
-createRuleLi :: String -> Int -> IO JQuery
-createRuleLi rule id = do
+  
+createRuleLi :: RulesRef -> String -> Int -> IO JQuery
+createRuleLi rlsref rule id = do
   item <- jQuery $ "<li>" ++ rules_list_item rule ++ "</li>"
   delButton <- findSelector item "button.btnDeleteList"
-  click delButton (deleteRule item id)
+  click delButton (deleteRule rlsref item id)
   return item
 
 -- | Checks the current proof against the current list of rules. If the user
@@ -326,13 +322,16 @@ markInvalidTerm jq = clearClasses jq >> addClass jq "blueField"
 markClear :: JQuery -> IO ()
 markClear jq = clearClasses jq >> addClass jq "whiteField"
 
-deleteRule :: JQuery -> Int -> EventHandler
-deleteRule jq i _ = do
+deleteRule :: RulesRef -> JQuery -> Int -> EventHandler
+deleteRule rlsref jq i _ = do
   deleteRuleFromStore i
-  remove jq
+  rules <- readRulesFromStore
+  writeIORef rlsref rules
+  addRulesList rlsref
   return False
 
-loadExampleData :: EventHandler
-loadExampleData _ = do 
-  setLocalStorage "rules" Prolog.exampleData
+loadExampleData :: RulesRef -> EventHandler
+loadExampleData rlsref _ = do 
+  writeRulesInStore Prolog.exampleData
+  addRulesList rlsref
   return False
