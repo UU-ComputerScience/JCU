@@ -333,5 +333,7 @@ deleteRule rlsref jq i _ = do
 loadExampleData :: RulesRef -> EventHandler
 loadExampleData rlsref _ = do 
   writeRulesInStore Prolog.exampleData
+  rules <- readRulesFromStore
+  writeIORef rlsref rules
   addRulesList rlsref
   return False
