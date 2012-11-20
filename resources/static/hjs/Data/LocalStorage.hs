@@ -1,11 +1,13 @@
 module Data.LocalStorage 
   ( getLocalStorage
+  , _getLocalStorage
   , setLocalStorage
   , removeLocalStorage
   , clearLocalStorage
   , lengthLocalStorage
   , keyLocalStorage
   , addStorageListener
+  , keyExistsInLocalStorage
   , StorageEvent(..)
   ) where
 
@@ -53,6 +55,18 @@ foreign import js "localStorage.key(%1)"
 keyLocalStorage :: Int -> IO String
 keyLocalStorage = fmap fromJS . _keyLocalStorage
 
+keyExistsInLocalStorage :: String -> IO Bool
+keyExistsInLocalStorage key = do
+  maxI <- lengthLocalStorage
+  keys <- iterate 0 maxI
+  return $ key `elem` keys
+  where
+    iterate :: Int -> Int -> IO [String]
+    iterate i m | i < m  = do x  <- keyLocalStorage i 
+                              xs <- iterate (i+1) m
+                              return $ x : xs
+                | i >= m = return []
+    
 foreign import js "window.addEventListener('storage', %1, false)"
   _addStorageListener :: JSFunPtr (JStorageEvent -> IO ()) -> IO ()
 

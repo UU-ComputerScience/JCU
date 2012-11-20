@@ -112,6 +112,8 @@ main :: IO ()
 main = do
   path <- pathName
   init <- wrapIO initProofTree
+  
+  initializeApplicationDefaults
   onDocumentReady init
 
 
@@ -325,3 +327,15 @@ loadExampleData _ = do
   writeRulesInStore Prolog.exampleData
   addRulesList
   return False
+  
+initializeApplicationDefaults :: IO ()
+initializeApplicationDefaults = do
+  -- Check whether we can parse the stored rules, if not store empty rule set
+  rulesKeyExists <- keyExistsInLocalStorage rulesStoreKey
+  if not rulesKeyExists then
+    writeRulesInStore [] else return ()
+    
+  rulesTxt <- fmap (fromJS :: JSString -> String) $ _getLocalStorage (toJS rulesStoreKey)
+  case (run pRules rulesTxt) of
+      Nothing -> writeRulesInStore []
+      _       -> return ()

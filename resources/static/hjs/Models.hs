@@ -63,7 +63,7 @@ run :: Parser a b -> [a] -> Maybe b
 run p as = fmap fst . find (null . snd) $ startParse p as
 
 pRules :: Parser Char [NP.Rule]                      
-pRules = bracketed (commaList pRule)
+pRules = bracketed (commaList pRule <|> succeed [])
 
 instance Read NP.Rule where
   readsPrec _ str = case find (null . snd) $ startParse pRule str of
