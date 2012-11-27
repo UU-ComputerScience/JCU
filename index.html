@@ -53,6 +53,17 @@
                 clicking the button below. Beware that this will replace all
                 your existing rules! </p>
                 <input type="button" id="btnLoadExampleData" value="Load Example Data">
+                
+                <p class="lhsText">
+                  Example proof goals to start with. Select a goal you want to
+                  proof and click "Start selected proof to" to begin proving the
+                  selected goal.
+                </p>
+                
+                <select id="startTerm">
+                  <option value="ouder(alex,ama)">Alex is ouder van Amalia</option>
+                </select>
+                <input type="button" id="btnStartTerm" value="Start selected proof">
               </div>
             </div>
             <div class="yui3-u-1-2" id="mainRight">
@@ -63,6 +74,7 @@
                 <div id="divListAdd">
                   <input type="text" id="txtAddRule" />
                   <input type="button" id="btnAddRule" value="Add" />
+                  <input type="button" id="btnClearRules" value="Delete all rules" style="float:right;">
                 </div>
               </div>
             </div>

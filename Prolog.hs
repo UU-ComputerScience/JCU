@@ -174,3 +174,9 @@ exampleData =
                    ,  Fun "cons" [Fun "cons" [Var "X", Var "YS"], Var "ZSS"]]
                    :<-: [Fun "voegtoe" [Var "XS", Var "YSS", Var "ZSS"]]
   ]
+
+exampleGoals :: [(String, Term)]
+exampleGoals = 
+  [ ("Alexander is ouder van Amalia",   Fun "ouder"     [cnst "alex", cnst "ama"])
+  , ("Beatrix is voorouder van Amalia", Fun "voorouder" [cnst "bea",  cnst "ama"])
+  ]

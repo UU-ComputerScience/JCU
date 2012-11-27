@@ -139,10 +139,15 @@ initProofTree = do -- Rendering
   -- Rules list
   addRules
   
-  registerEvents  [  ("#btnCheck"  ,         Click   , toggleClue emptyProof)
-                  ,  ("#btnAddRule",         Click   , addRuleEvent)
-                  ,  ("#btnReset"  ,         Click   , resetTree)
-                  ,  ("#btnLoadExampleData", Click   , loadExampleData)
+  -- Add the example goals
+  addExampleGoals
+  
+  registerEvents  [  ("#btnCheck"  ,         Click, toggleClue emptyProof)
+                  ,  ("#btnAddRule",         Click, addRuleEvent)
+                  ,  ("#btnClearRules",      Click, clearRules)
+                  ,  ("#btnReset"  ,         Click, resetTree)
+                  ,  ("#btnLoadExampleData", Click, loadExampleData)
+                  ,  ("#btnStartTerm",       Click, startExampleGoal)
                   ,  ("#txtAddRule", KeyPress, clr)
                   ,  ("#txtAddRule", Blur    , checkTermSyntax) ]
   where  resetTree _ = do -- Do not forget to add the class that hides the colours
@@ -326,6 +331,28 @@ loadExampleData :: EventHandler
 loadExampleData _ = do 
   writeRulesInStore Prolog.exampleData
   addRulesList
+  return False
+  
+clearRules :: EventHandler
+clearRules _ = do
+  writeRulesInStore []
+  addRulesList
+  return False
+  
+addExampleGoals :: IO ()
+addExampleGoals = do
+  select <- jQuery "#startTerm"
+  empty select
+  let f (desc, goal) = do option <- jQuery $ "<option value=\"" ++ show goal ++ "\">" ++ desc ++ "</option>"
+                          append select option
+  mapM_ f Prolog.exampleGoals
+  
+startExampleGoal :: EventHandler
+startExampleGoal _ = do
+  selectedTerm <- jQuery "#startTerm" >>= valString
+  case tryParseTerm selectedTerm of
+    Just t  -> replaceRuleTree $ T.Node t []
+    Nothing -> return ()
   return False
   
 initializeApplicationDefaults :: IO ()
