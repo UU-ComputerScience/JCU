@@ -30,6 +30,8 @@ import Language.Prolog.NanoProlog.ParserUUTC
 
 import Language.UHC.JS.JQuery.Deferred
 
+import Debug (trace, consoleLog)
+
 {-import Language.UHC.JScript.WebWorker -}
 
 ----
@@ -132,7 +134,6 @@ noevent _ = return False
 initProofTree :: IO ()
 initProofTree = do -- Rendering
   l <- jQuery "#mainLeft"
-  rules <- readRulesFromStore
 
   -- Proof tree
   addRuleTree
@@ -140,7 +141,7 @@ initProofTree = do -- Rendering
   addRules
   
   -- Add the example goals
-  addExampleGoals
+  -- addExampleGoals
   
   registerEvents  [  ("#btnCheck"  ,         Click, toggleClue emptyProof)
                   ,  ("#btnAddRule",         Click, addRuleEvent)
@@ -184,7 +185,9 @@ addRuleTree = do
 -- | Builds up the rule tree
 buildRuleUl :: Prolog.Proof -> Prolog.PCheck -> IO JQuery
 buildRuleUl node status =
-  do topUL <- jQuery "<ul id=\"proof-tree-view\" class=\"tree\"/>"
+  do trace (show node) (return ())  
+     trace (show status) (return ())
+     topUL <- jQuery "<ul id=\"proof-tree-view\" class=\"tree\"/>"
      restUL <- build' [0] node (node, status) False
      append topUL restUL
      inputField <- findSelector restUL "input"
@@ -209,7 +212,7 @@ buildRuleUl node status =
                 Nothing  -> showError "This should not happen. Dropping an invalid rule here."
                 Just t   -> case Prolog.dropUnify wp lvl t of
                               Prolog.DropRes False  _  -> showError "I could not unify this."
-                              Prolog.DropRes True   p  -> replaceRuleTree p
+                              Prolog.DropRes True   p  -> trace "go" $ replaceRuleTree p
       return True
 
     build' :: [Int] -> Prolog.Proof -> (Prolog.Proof, Prolog.PCheck) -> Bool -> IO JQuery
@@ -234,7 +237,11 @@ buildRuleUl node status =
 
 replaceRuleTree :: Prolog.Proof -> IO ()
 replaceRuleTree p = do
+  consoleLog "replaceRuleTree"
+  consoleLog (show p)
+  
   status  <- checkProof p
+  consoleLog (show status)
   oldUL   <- jQuery ruleTreeId
   newUL   <- buildRuleUl p status
   -- Store new proof in the subst funct
@@ -242,12 +249,12 @@ replaceRuleTree p = do
                   ,  ("#btnSubst", Click, doSubst p) ]
   -- Draw the new ruleTree
   replaceWith oldUL newUL
-  CM.when (complete status) $
-    showInfo "Congratulations! You have successfully completed your proof!"
-  where  complete :: Prolog.PCheck -> Bool
-         complete (T.Node Prolog.Correct [])  = True
-         complete (T.Node Prolog.Correct xs)  = all complete xs
-         complete _                    = False
+  -- CM.when (complete status) $
+  --   showInfo "Congratulations! You have successfully completed your proof!"
+  -- where  complete :: Prolog.PCheck -> Bool
+  --        complete (T.Node Prolog.Correct [])  = True
+  --        complete (T.Node Prolog.Correct xs)  = all complete xs
+  --        complete _                    = False
 
 addRules :: IO ()
 addRules = do
