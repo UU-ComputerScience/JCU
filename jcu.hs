@@ -185,8 +185,9 @@ addRuleTree = do
 -- | Builds up the rule tree
 buildRuleUl :: Prolog.Proof -> Prolog.PCheck -> IO JQuery
 buildRuleUl node status =
-  do trace (show node) (return ())  
-     trace (show status) (return ())
+  do consoleLog "buildRuleUl"
+
+     consoleLog (show status)
      topUL <- jQuery "<ul id=\"proof-tree-view\" class=\"tree\"/>"
      restUL <- build' [0] node (node, status) False
      append topUL restUL
@@ -212,11 +213,12 @@ buildRuleUl node status =
                 Nothing  -> showError "This should not happen. Dropping an invalid rule here."
                 Just t   -> case Prolog.dropUnify wp lvl t of
                               Prolog.DropRes False  _  -> showError "I could not unify this."
-                              Prolog.DropRes True   p  -> trace "go" $ replaceRuleTree p
+                              Prolog.DropRes True   p  -> trace ("go") $ replaceRuleTree p
       return True
 
     build' :: [Int] -> Prolog.Proof -> (Prolog.Proof, Prolog.PCheck) -> Bool -> IO JQuery
     build' lvl wp (n@(T.Node term chts), T.Node status chstat) disabled = do
+      consoleLog ("build' " ++ show lvl ++ "; " ++ show wp)
       li <- jQuery "<li/>"
       appendString li $ proof_tree_item (show term) (intercalate "." $ map show lvl) disabled status
       dropzones <- findSelector li ".dropzone"
@@ -238,10 +240,10 @@ buildRuleUl node status =
 replaceRuleTree :: Prolog.Proof -> IO ()
 replaceRuleTree p = do
   consoleLog "replaceRuleTree"
-  consoleLog (show p)
+  -- consoleLog (show p)
   
   status  <- checkProof p
-  consoleLog (show status)
+  -- consoleLog (show status)
   oldUL   <- jQuery ruleTreeId
   newUL   <- buildRuleUl p status
   -- Store new proof in the subst funct

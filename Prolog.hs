@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 -- | This code was scavenged from the JCU server-side Prolog code. 
 --   So if that changes you should change it here too otherwise you won't see
 --   the effects of your changes. :)
@@ -11,7 +12,11 @@ import           Data.Tree (Tree(..))
 import            Language.Prolog.NanoProlog.NanoProlog
 import            Language.Prolog.NanoProlog.ParserUUTC
 
+#if __UHC__
 import            Debug (trace)
+#else
+import            Debug.Trace (trace)
+#endif
 
 type Proof     =  Tree Term
 type PCheck    =  Tree Status
@@ -77,7 +82,7 @@ dropUnify prf tns@(_:ns)  (t :<-: ts)  |  isNothing tmnd  = DropRes False prf
 
 -- | Add maximum depth to the unification proces                          
 unify' :: (Term, Term) -> Maybe Env -> Maybe Env
-unify' = trace "unify 0" $ unify 10
+unify' = trace "unify 10" $ unify 10
   where
     unify :: Int -> (Term, Term) -> Maybe Env -> Maybe Env
     unify 0       _      _                     = Nothing
@@ -183,3 +188,6 @@ exampleGoals =
   , ("Beatrix is voorouder van Amalia", Fun "voorouder" [cnst "bea",  cnst "ama"])
   ]
           
+test = dropUnify (Node (Fun "ouder" [Var "X", cnst "ama"]) []) 
+                 [0] 
+                 (Fun "ouder"  [Var "X",  Var "Y"] :<-:  [  Fun "pa"     [Var "X",  Var "Y"] ])

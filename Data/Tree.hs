@@ -1,6 +1,5 @@
 module Data.Tree where
 
-import UHC.Generics
   
 data Tree a = Node {
         rootLabel :: a,         -- ^ label value
