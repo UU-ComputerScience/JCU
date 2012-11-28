@@ -1,86 +1,65 @@
 module JCU where
 
-import qualified Control.Monad as CM (liftM, foldM, when)
+import qualified Control.Monad as CM (liftM, foldM, when, unless)
 
-import Data.Array (elems)
-import Data.IORef
-import Data.List as DL
-import Data.LocalStorage
-import Data.Map   (fromList)
-import Data.Maybe (fromJust)
-import Data.Tree as T
+import           Data.Array (elems)
+import           Data.IORef
+import           Data.List as DL
+import           Data.LocalStorage
+import           Data.Map   (fromList)
+import           Data.Maybe (fromJust)
+import           Data.Tree as T
+                 
+import           Language.UHC.JS.Prelude
+import           Language.UHC.JS.Types -- (JS, toJS, fromJS, FromJS)
+import           Language.UHC.JS.Primitives
+import           Language.UHC.JS.JQuery.JQuery as JQ
+import           Language.UHC.JS.W3C.HTML5 as HTML5
+                 
+import           Language.UHC.JS.ECMA.Bool
+import           Language.UHC.JS.ECMA.String as JSString
 
-import Language.UHC.JS.Prelude
-import Language.UHC.JS.Types -- (JS, toJS, fromJS, FromJS)
-import Language.UHC.JS.Primitives
-import Language.UHC.JS.JQuery.JQuery as JQ
-import Language.UHC.JS.W3C.HTML5 as HTML5
 
-import Language.UHC.JS.ECMA.Bool
-import Language.UHC.JS.ECMA.String as JSString
-
-
-import Language.UHC.JS.Assorted (alert , _alert)
-
-import Language.UHC.JS.JQuery.Draggable
-import Language.UHC.JS.JQuery.Droppable
+import           Language.UHC.JS.JQuery.Draggable
+import           Language.UHC.JS.JQuery.Droppable
 
 import qualified Language.Prolog.NanoProlog.NanoProlog as NP
-import Language.Prolog.NanoProlog.ParserUUTC
+import           Language.Prolog.NanoProlog.ParserUUTC
 
-import Language.UHC.JS.JQuery.Deferred
+import           Language.UHC.JS.JQuery.Deferred
 
-import Debug (trace, consoleLog)
+import           Debug (trace, consoleLog)
 
 {-import Language.UHC.JScript.WebWorker -}
 
 ----
 --  App
 ----
+import qualified Language.UHC.JS.ECMA.Array as ECMAArray (JSArray, jsArrayToArray)
+
+import           Models
 
 import qualified Prolog
 
-import qualified Language.UHC.JS.ECMA.Array as ECMAArray (JSArray, jsArrayToArray)
+import           Templates
+import           Util
 
-import Array
 
-import Templates
-import Models
+
+
 
 ----
 --   Constants
 ----
 
 ruleTreeId     = "ul#proof-tree-view.tree"
-storeDoCheckId = "#storeDoChecking"
 
-----
---   Helpers
-----
-showError = alert
-showInfo  = alert
-
--- | Update an existing input field that is used to store `global' variables
---   Not entirely best practice. This should perhaps be modelled in a State
---   monad.
-updateStore :: (Read a, Show a) => Selector -> (a -> a) -> IO ()
-updateStore sel updateF = do
-  store <- jQuery sel
-  val   <- fmap read (valString store)
-  setValString store (show $ updateF val)
-
--- | Read the contents of the store
--- TODO: Update this to use HTML5 local storage
-readStore :: (Read a) => Selector -> IO a
-readStore sel = fmap read (jQuery storeDoCheckId >>= valString)
-
-rulesStoreKey = "rules"
+rulesStoreKey      = "rules"
+checkProofStoreKey = "checkProof" 
 
 -- | Reads the stored rules from the local datastore (HTML5)
 readRulesFromStore :: IO [NP.Rule]
-readRulesFromStore = do
-  rules <- getLocalStorage rulesStoreKey :: IO [NP.Rule]
-  return rules
+readRulesFromStore = getLocalStorage rulesStoreKey :: IO [NP.Rule]
 
 -- | Write the rules directly to storage
 writeRulesInStore :: [NP.Rule] -> IO ()
@@ -104,7 +83,7 @@ deleteRuleFromStore :: Int -> IO ()
 deleteRuleFromStore id = modifyRulesInStore dropX
   where
   dropX rules = let (ys,zs) = splitAt id rules
-                in   ys ++ (tail zs)
+                in   ys ++ tail zs
   
 
 ----
@@ -128,9 +107,6 @@ checkTermSyntax _ = do
     _        -> return ()
   return True
 
-noevent :: EventHandler
-noevent _ = return False
-
 initProofTree :: IO ()
 initProofTree = do -- Rendering
   l <- jQuery "#mainLeft"
@@ -141,7 +117,13 @@ initProofTree = do -- Rendering
   addRules
   
   -- Add the example goals
-  -- addExampleGoals
+  addExampleGoals
+  
+  performCheck <- getLocalStorage checkProofStoreKey
+  if not performCheck then
+      jQuery "#proof-tree-div" >>= flip addClass "noClue"
+    else
+      jQuery "#proof-tree-div" >>= flip removeClass' "noClue"
   
   registerEvents  [  ("#btnCheck"  ,         Click, toggleClue emptyProof)
                   ,  ("#btnAddRule",         Click, addRuleEvent)
@@ -154,20 +136,19 @@ initProofTree = do -- Rendering
   where  resetTree _ = do -- Do not forget to add the class that hides the colours
            jQuery "#proof-tree-div" >>= flip addClass "noClue"
            -- Always store False in the store.
-           updateStore storeDoCheckId (const False)
+           setLocalStorage checkProofStoreKey False
            replaceRuleTree emptyProof
            return True
          clr obj = do
            which <- getAttr "which" obj
-           CM.when ((which :: Int) == 13) $
-             addRuleEvent undefined >> return ()
+           CM.when ((which :: Int) == 13) $ void (addRuleEvent undefined)
            jQuery "#txtAddRule" >>= clearClasses >> return True
 
 -- Toggles checking of the proof and showing the results
 toggleClue :: Prolog.Proof -> EventHandler
 toggleClue p _ = do
   toggleClassString "#proof-tree-div" "noClue"
-  updateStore storeDoCheckId not
+  modifyLocalStorage checkProofStoreKey not
   replaceRuleTree p
   return True
 
@@ -213,7 +194,7 @@ buildRuleUl node status =
                 Nothing  -> showError "This should not happen. Dropping an invalid rule here."
                 Just t   -> case Prolog.dropUnify wp lvl t of
                               Prolog.DropRes False  _  -> showError "I could not unify this."
-                              Prolog.DropRes True   p  -> trace ("go") $ replaceRuleTree p
+                              Prolog.DropRes True   p  -> replaceRuleTree p
       return True
 
     build' :: [Int] -> Prolog.Proof -> (Prolog.Proof, Prolog.PCheck) -> Bool -> IO JQuery
@@ -263,17 +244,17 @@ addRules = do
   rules_list_div <- jQuery "#rules-list-div"
   rules_list_ul  <- jQuery "<ul id=\"rules-list-view\"/>"
   append rules_list_div rules_list_ul
-  addRulesList
+  setRulesList
   
-addRulesList :: IO ()
-addRulesList = do
+setRulesList :: IO ()
+setRulesList = do
   rules_list_ul <- jQuery "#rules-list-view"
   empty rules_list_ul
   rules <- readRulesFromStore
   let f (idx, rule) = do listItem <- createRuleLi (show rule) idx
                          append rules_list_ul listItem
                          return ()
-  mapM f (zip [0..] rules)
+  mapM_ f (zip [0..] rules)
   
   onStart <- mkJUIEventHandler (\x y -> do focus <- jQuery ":focus"
                                            doBlur focus
@@ -286,11 +267,11 @@ addRuleEvent :: EventHandler
 addRuleEvent event = do
   rule  <- jQuery "#txtAddRule" >>= valJSString
   case tryParseRule (fromJS rule) of
-    Nothing  ->  showError $ "Invalid rule, not adding to rule list." ++ (fromJS rule)
+    Nothing  ->  showError $ "Invalid rule, not adding to rule list." ++ fromJS rule
     Just r   ->  do  success <- addRuleToStore r
                      case success of
-                       Nothing -> showError $ "Rule already exists"
-                       _       -> do addRulesList
+                       Nothing -> showError "Rule already exists"
+                       _       -> do setRulesList
                                      jQuery "#txtAddRule" >>= flip setValString ""
   return True
   
@@ -307,7 +288,7 @@ createRuleLi rule id = do
 checkProof :: Prolog.Proof -> IO Prolog.PCheck
 checkProof p = do
   rules'   <- readRulesFromStore
-  doCheck  <- readStore storeDoCheckId
+  doCheck  <- getLocalStorage checkProofStoreKey
   return $ if doCheck
              then Prolog.checkProof rules' p
              else Prolog.dummyProof p
@@ -333,19 +314,19 @@ markClear jq = clearClasses jq >> addClass jq "whiteField"
 deleteRule :: JQuery -> Int -> EventHandler
 deleteRule jq i _ = do
   deleteRuleFromStore i
-  addRulesList
+  setRulesList
   return False
 
 loadExampleData :: EventHandler
 loadExampleData _ = do 
   writeRulesInStore Prolog.exampleData
-  addRulesList
+  setRulesList
   return False
   
 clearRules :: EventHandler
 clearRules _ = do
   writeRulesInStore []
-  addRulesList
+  setRulesList
   return False
   
 addExampleGoals :: IO ()
@@ -366,12 +347,15 @@ startExampleGoal _ = do
   
 initializeApplicationDefaults :: IO ()
 initializeApplicationDefaults = do
-  -- Check whether we can parse the stored rules, if not store empty rule set
-  rulesKeyExists <- keyExistsInLocalStorage rulesStoreKey
-  if not rulesKeyExists then
-    writeRulesInStore [] else return ()
+  check (rulesStoreKey,      [] :: [NP.Rule], isJust . run pRules)
+  check (checkProofStoreKey, False,           isJust . (readMaybe :: String -> Maybe Bool))
     
-  rulesTxt <- fmap (fromJS :: JSString -> String) $ _getLocalStorage (toJS rulesStoreKey)
-  case (run pRules rulesTxt) of
-      Nothing -> writeRulesInStore []
-      _       -> return ()
+  where
+    check :: (Show a, Read a) => (String, a, String -> Bool) -> IO ()
+    check (key, def, p) = do 
+      exis <- keyExistsInLocalStorage key
+      if exis then
+          do valTxt <- fmap fromJSString (_getLocalStorage (toJS key))
+             CM.unless (p valTxt) $ setLocalStorage key def
+        else
+          setLocalStorage key def

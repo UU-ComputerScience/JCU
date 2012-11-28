@@ -2,6 +2,7 @@ module Data.LocalStorage
   ( getLocalStorage
   , _getLocalStorage
   , setLocalStorage
+  , modifyLocalStorage
   , removeLocalStorage
   , clearLocalStorage
   , lengthLocalStorage
@@ -36,6 +37,11 @@ foreign import js "localStorage.setItem(%1, %2)"
 
 setLocalStorage :: Show a => String -> a -> IO ()
 setLocalStorage key = _setLocalStorage (toJS key) . (toJS :: String -> JSString) . show
+
+modifyLocalStorage :: (Read a, Show a) => String -> (a -> a) -> IO ()
+modifyLocalStorage key f = do
+  val <- getLocalStorage key
+  setLocalStorage key (f val)
 
 foreign import js "localStorage.removeItem(%1)"
   _removeLocalStorage :: JSString -> IO ()
