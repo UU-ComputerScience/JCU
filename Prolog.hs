@@ -80,23 +80,9 @@ dropUnify prf tns@(_:ns)  (t :<-: ts)  |  isNothing tmnd  = DropRes False prf
                         ntg         = intersperse '.' $ concatMap show tns
                         ncs         = map (flip Node []) (tag ntg ts)
                         mkPrf' env  = subst env (insertNode prf ns ncs)
-                   in   case unify' (tag ntg t, tm) emptyEnv of
+                   in   case unify (tag ntg t, tm) emptyEnv of
                           Nothing   -> DropRes False  prf
-                          Just env  -> DropRes True   (mkPrf' env)
-
--- | Add maximum depth to the unification proces                          
-unify' :: (Term, Term) -> Maybe Env -> Maybe Env
-unify' = trace "unify 10" $ unify 10
-  where
-    unify :: Int -> (Term, Term) -> Maybe Env -> Maybe Env
-    unify 0       _      _                     = Nothing
-    unify _       _      Nothing               = Nothing
-    unify n      (t, u)  env@(Just e@(Env m))  = trace ("unify.3 " ++ show n) $ uni (subst e t) (subst e u)
-      where  uni  (Var x)  y        = Just  (Env (M.insert x  y  m))
-             uni  x        (Var y)  = Just  (Env (M.insert y  x  m))
-             uni  (Fun x xs) (Fun y ys)
-               |  x == y && length xs == length ys  = trace ("uni " ++ show n) $ foldr (unify (n-1)) env (zip xs ys)
-               |  otherwise                         = Nothing                          
+                          Just env  -> DropRes True   (mkPrf' env)           
 
 getNode :: Proof -> [Int] -> Maybe Proof
 getNode (Node _ [])  (_:_)   =  Nothing
