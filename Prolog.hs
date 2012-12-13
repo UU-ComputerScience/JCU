@@ -38,15 +38,19 @@ dummyProof (Node _ xs) = Node Incomplete (map dummyProof xs)
 -- reached a fact yet, it is Incomplete. If the child term is a non-unifyable
 -- term, it is Incorrect.
 checkProof :: [Rule] -> Proof -> PCheck
-checkProof rls (Node tm cs)
-  | rlsMatch   =  if hasVars tm
-                    then  mkNode Incomplete
-                    else  mkNode Correct
-  | otherwise  =  if null cs
-                    then  mkNode Incomplete
-                    else  mkNode Invalid
-  where  rlsMatch   = any (tryRule tm (map rootLabel cs)) rls
-         mkNode st  = Node st (map (checkProof rls) cs)
+checkProof = checkProof' 100
+  where 
+    checkProof' :: Int -> [Rule] -> Proof -> PCheck
+    checkProof' n _   _ | n <= 0 = error "Proof checking depth reached."
+    checkProof' n rls (Node tm cs)
+      | rlsMatch   =  if hasVars tm
+                        then  mkNode Incomplete
+                        else  mkNode Correct
+      | otherwise  =  if null cs
+                        then  mkNode Incomplete
+                        else  mkNode Invalid
+      where  rlsMatch   = any (tryRule tm (map rootLabel cs)) rls
+             mkNode st  = Node st (map (checkProof' (n-1) rls) cs)
 
 hasVars :: Term -> Bool
 hasVars (Var _)     = True
@@ -184,10 +188,11 @@ exampleData =
 
 exampleGoals :: [(String, Term)]
 exampleGoals = 
-  [ ("Alexander is ouder van Amalia",   Fun "ouder"     [cnst "alex", cnst "ama"])
-  , ("Beatrix is voorouder van Amalia", Fun "voorouder" [cnst "bea",  cnst "ama"])
+  [ ("Alexander is ouder van Amalia",   Fun "ouder"  [cnst "alex", cnst "ama"])
+  , ("Beatrix is voorouder van Amalia", Fun "voor"   [cnst "bea",  cnst "ama"])
+  , ("Beatrix is de moeder van iemand", Fun "ouder"  [cnst "bea",  Var "X"])
   ]
           
-test = dropUnify (Node (Fun "ouder" [Var "X", cnst "ama"]) []) 
-                 [0] 
-                 (Fun "ouder"  [Var "X",  Var "Y"] :<-:  [  Fun "pa"     [Var "X",  Var "Y"] ])
+-- test = dropUnify (Node (Fun "ouder" [Var "X", cnst "ama"]) []) 
+--                  [0] 
+--                  (Fun "ouder"  [Var "X",  Var "Y"] :<-:  [  Fun "pa"     [Var "X",  Var "Y"] ])
